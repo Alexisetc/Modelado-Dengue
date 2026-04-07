@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría de Migración: Yang Params Model</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.2.0/diff.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --page-bg: #f6f8fc;
+            --page-bg-soft: #eef4fb;
+            --page-bg-elevated: #ffffff;
+            --panel-bg: rgba(255, 255, 255, 0.92);
+            --panel-strong: #ffffff;
+            --panel-muted: #f6f8fb;
+            --border: #d8e0ea;
+            --border-strong: #c7d2e1;
+            --text: #0f172a;
+            --text-muted: #475569;
+            --text-soft: #64748b;
+            --accent: #58a6ff;
+            --accent-strong: #1f6feb;
+            --success-bg: rgba(46, 160, 67, 0.15);
+            --success-border: #2ea043;
+            --success-text: #1f7a39;
+            --danger-bg: rgba(248, 81, 73, 0.16);
+            --danger-border: #f85149;
+            --danger-text: #b42318;
+            --warning-bg: rgba(210, 153, 34, 0.16);
+            --warning-border: #d29922;
+            --warning-text: #9a6700;
+            --info-bg: rgba(56, 139, 253, 0.16);
+            --info-border: #388bfd;
+            --info-text: #0b5cab;
+            --diff-bg: #0f1720;
+            --diff-bg-alt: #111926;
+            --diff-header: #0b1220;
+            --diff-text: #e5edf5;
+            --diff-muted: #94a3b8;
+            --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.12);
+        }
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top, rgba(56, 139, 253, 0.18), transparent 24%),
+                linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+        }
+        .panel-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+        .panel-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+        .panel-scroll::-webkit-scrollbar-track { background: var(--panel-muted); }
+        .tab-active { border-bottom: 2px solid var(--accent); color: var(--accent); font-weight: 700; }
+        .tab-inactive { color: var(--text-muted); font-weight: 600; }
+        .tab-inactive:hover { color: var(--text); }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .glass-panel {
+            background: var(--panel-bg);
+            border-color: var(--border) !important;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(18px);
+        }
+        .summary-card { position: relative; overflow: hidden; }
+        .summary-card::after { content: ""; position: absolute; inset: auto -20% -45% auto; width: 120px; height: 120px; border-radius: 999px; background: rgba(88, 166, 255, 0.12); pointer-events: none; }
+        .review-input {
+            background: var(--panel-muted);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .review-input::placeholder { color: var(--text-soft); }
+        .review-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent);
+        }
+        .nav-button {
+            background: var(--panel-muted);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        .nav-button:hover { background: #151b23; color: var(--text); }
+        .nav-button-disabled {
+            background: rgba(48, 54, 61, 0.45);
+            border: 1px solid var(--border);
+            color: var(--text-soft);
+            cursor: not-allowed;
+        }
+        .pill-badge, .pill-neutral {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            padding: 0.2rem 0.65rem;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .pill-neutral {
+            background: var(--panel-muted);
+            color: var(--text-muted);
+        }
+        .kind-paired {
+            background: var(--success-bg);
+            border-color: var(--success-border);
+            color: var(--success-text);
+        }
+        .kind-python-only {
+            background: var(--info-bg);
+            border-color: var(--info-border);
+            color: var(--info-text);
+        }
+        .kind-matlab-only {
+            background: var(--warning-bg);
+            border-color: var(--warning-border);
+            color: var(--warning-text);
+        }
+        .filter-active {
+            background: var(--accent-strong);
+            color: #ffffff;
+            border-color: var(--accent-strong);
+        }
+        .filter-idle {
+            background: var(--panel-muted);
+            color: var(--text-muted);
+            border-color: var(--border);
+        }
+        .filter-idle:hover {
+            background: #151b23;
+            color: var(--text);
+        }
+        .meta-card {
+            border: 1px solid var(--border);
+            background: var(--panel-muted);
+        }
+        .mini-stat {
+            border: 1px solid var(--border);
+            background: #ffffff;
+            border-radius: 999px;
+            padding: 0.35rem 0.75rem;
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+        .mini-stat strong {
+            color: #0b1220;
+            font-size: 14px;
+            margin-left: 0.3rem;
+        }
+        .compact-summary {
+            border: 1px solid var(--border);
+            background: var(--panel-muted);
+            border-radius: 16px;
+            padding: 0.8rem 1rem;
+        }
+        .compact-summary summary {
+            cursor: pointer;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 700;
+            list-style: none;
+        }
+        .compact-summary summary::-webkit-details-marker { display: none; }
+        .compact-summary[open] summary { margin-bottom: 0.85rem; }
+        .diff-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+        .diff-table th {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: var(--diff-header);
+            color: var(--diff-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 11px;
+            border-bottom: 1px solid var(--border);
+        }
+        .diff-table td, .diff-table th { border-bottom: 1px solid var(--border); vertical-align: top; }
+        .diff-num { width: 56px; color: var(--diff-muted); text-align: right; padding: 0.45rem 0.5rem; user-select: none; }
+        .diff-code-cell { padding: 0; }
+        .diff-code { margin: 0; padding: 0.45rem 0.75rem; white-space: pre-wrap; word-break: break-word; line-height: 1.5; color: var(--diff-text); background: transparent; }
+        .diff-row-context { background: var(--diff-bg); }
+        .diff-row-added { background: var(--success-bg); }
+        .diff-row-removed { background: var(--danger-bg); }
+        .diff-row-empty { background: var(--diff-bg-alt); }
+        .diff-separator td { background: var(--diff-header); color: var(--diff-muted); font-size: 11px; padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--border); }
+        .diff-split-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; min-width: 1200px; }
+        .diff-pane { min-width: 0; border-right: 1px solid var(--border); }
+        .diff-pane:last-child { border-right: 0; }
+        .diff-empty-note { color: var(--diff-muted); }
+        .summary-table th {
+            background: #f8fafc;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 11px;
+            border-bottom: 1px solid var(--border);
+        }
+        .summary-table td, .summary-table th {
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .summary-scroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-gutter: stable both-edges;
+            scrollbar-color: var(--border-strong) #eef2f7;
+            scrollbar-width: auto;
+        }
+        .summary-scroll::-webkit-scrollbar {
+            height: 14px;
+        }
+        .summary-scroll::-webkit-scrollbar-track {
+            background: #eef2f7;
+            border-radius: 999px;
+        }
+        .summary-scroll::-webkit-scrollbar-thumb {
+            background: var(--border-strong);
+            border-radius: 999px;
+            border: 3px solid #eef2f7;
+        }
+        .modal-backdrop {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(8px);
+        }
+        .modal-shell {
+            max-height: min(86vh, 980px);
+        }
+        .modal-code {
+            background: #0f1720;
+            color: #e5edf5;
+            border: 1px solid #233044;
+            border-radius: 16px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+        .section-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 0.25rem 0.65rem;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .alert-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            border-radius: 999px;
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fdba74;
+            padding: 0.3rem 0.7rem;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .alert-card {
+            border: 1px solid #fed7aa;
+            background: linear-gradient(180deg, #fffaf4 0%, #fff7ed 100%);
+            border-radius: 18px;
+            padding: 1rem 1rem 0.95rem;
+        }
+        .alert-card-info {
+            border-color: #bfdbfe;
+            background: linear-gradient(180deg, #f8fbff 0%, #eff6ff 100%);
+        }
+        .alert-evidence {
+            background: #111827;
+            color: #e5edf5;
+            border-radius: 14px;
+            padding: 0.85rem 0.95rem;
+            font-size: 12px;
+            line-height: 1.55;
+            overflow-x: auto;
+        }
+        .debug-panel {
+            position: fixed;
+            right: 14px;
+            bottom: 14px;
+            z-index: 9999;
+            width: min(460px, calc(100vw - 28px));
+            max-height: 42vh;
+            overflow: auto;
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.96);
+            color: #e5edf5;
+            border: 1px solid #334155;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+            padding: 0.9rem 1rem;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .debug-line + .debug-line {
+            margin-top: 0.35rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <header class="bg-white/90 text-slate-900 border-b border-slate-200 backdrop-blur">
+        <div class="max-w-[1600px] mx-auto px-6 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <div class="flex items-center gap-3">
+                    <i data-lucide="files" class="w-6 h-6 text-blue-600"></i>
+                    <h1 class="text-xl font-bold">Auditoría de Migración: Yang Params Model</h1>
+                </div>
+                <p class="text-sm text-slate-600 mt-2">
+                    Reporte generado desde los archivos reales de <span class="mono">Yang params model/</span> y <span class="mono">dengue_model/</span>.
+                </p>
+            </div>
+            <div class="text-sm text-slate-600 space-y-1">
+                <div>Generado: <span class="text-slate-900 font-medium" id="generated-at"></span></div>
+                <div>Regenerar: <span class="mono text-blue-700" id="regen-command"></span></div>
+                <div>Elaborado: <span class="font-medium text-slate-900">Econ. Alexis Núñez</span></div>
+            </div>
+        </div>
+        <div class="max-w-[1600px] mx-auto px-6 flex gap-6">
+            <button id="tab-resumen" class="tab-active py-3 flex items-center gap-2" onclick="switchTab('resumen')">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                Modulo 1: Transformacion y estructura
+            </button>
+            <button id="tab-diff" class="tab-inactive py-3 flex items-center gap-2" onclick="switchTab('diff')">
+                <i data-lucide="git-compare-arrows" class="w-4 h-4"></i>
+                Modulo 2: Diff archivo por archivo
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto px-6 py-6">
+        <section id="view-resumen" class="space-y-6">
+            <section class="rounded-[28px] bg-gradient-to-br from-white to-slate-100 border border-slate-200 text-slate-900 shadow-xl overflow-hidden">
+                <div class="grid grid-cols-1 xl:grid-cols-[1.25fr_0.75fr] gap-0">
+                    <article class="p-7 lg:p-8">
+                        <div class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                            Lectura ejecutiva de la migracion
+                        </div>
+                        <h2 class="mt-4 text-2xl lg:text-3xl font-bold leading-tight">La auditoría ahora se centra en comprender la transformación y luego inspeccionarla como revisión de código.</h2>
+                        <p class="mt-4 text-sm lg:text-base text-slate-600 leading-7" id="methodology-text"></p>
+                        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div class="font-semibold text-slate-900">Correspondencia verificable</div>
+                                <div class="text-slate-600 mt-1">Cada par MATLAB/Python puede abrirse directamente en el inspector para revisar cambios reales.</div>
+                            </div>
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div class="font-semibold text-slate-900">Infraestructura visible</div>
+                                <div class="text-slate-600 mt-1">Los módulos nuevos de Python quedan separados para distinguir soporte del núcleo migrado.</div>
+                            </div>
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div class="font-semibold text-slate-900">Reporte regenerable</div>
+                                <div class="text-slate-600 mt-1">El HTML sigue anclado a los archivos del proyecto y se reconstruye desde el estado actual del disco.</div>
+                            </div>
+                        </div>
+                    </article>
+                    <aside class="p-7 lg:p-8 bg-slate-50 border-t xl:border-t-0 xl:border-l border-slate-200">
+                        <div class="flex items-center gap-2 text-blue-700">
+                            <i data-lucide="scan-search" class="w-5 h-5"></i>
+                            <h3 class="font-semibold">Señales rápidas</h3>
+                        </div>
+                        <ul class="mt-4 space-y-3 text-sm text-slate-700" id="quick-facts"></ul>
+                    </aside>
+                </div>
+            </section>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4" id="summary-cards"></div>
+
+            <section class="glass-panel border border-white/70 rounded-[28px] shadow-xl overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200/80 bg-white/70 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h2 class="font-bold text-slate-900 text-lg">Tabla de transformacion archivo por archivo</h2>
+                        <p class="text-sm text-slate-600">Vista tabular compacta del original MATLAB, su version Python, para que sirve y el cambio principal realizado.</p>
+                    </div>
+                    <div class="text-xs text-slate-500 mono">Desliza horizontalmente si necesitas ver todas las columnas</div>
+                </div>
+                <div class="summary-scroll relative">
+                    <table class="summary-table min-w-[1240px] w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2.5 text-left">MATLAB</th>
+                                <th class="px-3 py-2.5 text-left">Python</th>
+                                <th class="px-3 py-2.5 text-left">Estado</th>
+                                <th class="px-3 py-2.5 text-left">Categoria</th>
+                                <th class="px-3 py-2.5 text-left">Para que sirve</th>
+                                <th class="px-3 py-2.5 text-left">Cambio principal</th>
+                                <th class="px-3 py-2.5 text-left min-w-[220px] w-[220px]">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transformation-table"></tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+
+        <section id="view-diff" class="hidden space-y-4">
+            <section class="glass-panel border border-white/70 rounded-[24px] shadow-xl overflow-hidden">
+                <div class="px-4 py-4 border-b border-slate-200/80 bg-slate-50/80">
+                    <div class="flex flex-col 2xl:flex-row gap-3 2xl:items-center">
+                        <div class="shrink-0 flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-[0.18em]">
+                            <i data-lucide="search-code" class="w-4 h-4 text-blue-400"></i>
+                            Inspector
+                        </div>
+                        <div class="flex-1 grid grid-cols-1 xl:grid-cols-[220px_minmax(0,1fr)_auto_auto] gap-2">
+                            <input id="search-input" type="text" placeholder="Buscar archivo..." class="review-input w-full rounded-xl px-3 py-2.5 text-sm">
+                            <select id="entry-select" class="review-input w-full rounded-xl px-3 py-2.5 text-sm"></select>
+                            <span id="search-result-count" class="pill-neutral justify-center px-3 py-2">0 archivos</span>
+                            <div class="flex items-center gap-2">
+                                <button id="prev-entry" type="button" class="nav-button rounded-xl px-3 py-2.5">
+                                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                                </button>
+                                <button id="next-entry" type="button" class="nav-button rounded-xl px-3 py-2.5">
+                                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+                        <div class="flex flex-wrap gap-2" id="kind-filters"></div>
+                        <span id="picker-position" class="text-xs text-slate-500">Archivo 0 de 0</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="glass-panel border border-white/70 rounded-[24px] shadow-xl overflow-hidden">
+                    <div class="px-4 py-4 border-b border-slate-200/80 bg-slate-50/80 space-y-3">
+                        <div class="flex flex-col 2xl:flex-row 2xl:items-center 2xl:justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span id="selected-status" class="pill-badge"></span>
+                                    <span id="selected-category" class="pill-neutral"></span>
+                                </div>
+                                <div class="mt-2 flex flex-col gap-1 xl:flex-row xl:items-center xl:gap-3">
+                                    <h2 class="text-lg xl:text-xl font-bold text-slate-900 leading-tight" id="selected-title">Archivo</h2>
+                                    <span id="selected-stats" class="flex flex-wrap gap-2"></span>
+                                </div>
+                                <p class="text-sm text-slate-600 mt-1 leading-6" id="selected-purpose"></p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span id="picker-position-inline" class="hidden xl:inline text-xs text-slate-500"></span>
+                                <label class="text-xs text-slate-500 font-medium uppercase tracking-[0.16em]">Vista</label>
+                                <select id="diff-view-mode" class="review-input rounded-xl px-3 py-2 text-sm">
+                                    <option value="line-by-line">Unificada</option>
+                                    <option value="side-by-side">Lado a lado</option>
+                                </select>
+                            </div>
+                        </div>
+                        <details class="compact-summary">
+                            <summary>Contexto del archivo</summary>
+                            <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                <div class="meta-card rounded-xl p-3">
+                                    <div class="text-[11px] uppercase tracking-[0.16em] text-slate-500">Origen MATLAB</div>
+                                    <div class="mt-2 text-sm font-medium mono text-rose-700" id="selected-matlab-name"></div>
+                                    <a id="selected-matlab-link" class="mt-1 inline-flex text-xs text-rose-600 hover:underline" target="_blank" rel="noopener noreferrer"></a>
+                                </div>
+                                <div class="meta-card rounded-xl p-3">
+                                    <div class="text-[11px] uppercase tracking-[0.16em] text-slate-500">Destino Python</div>
+                                    <div class="mt-2 text-sm font-medium mono text-emerald-700" id="selected-python-name"></div>
+                                    <a id="selected-python-link" class="mt-1 inline-flex text-xs text-emerald-600 hover:underline" target="_blank" rel="noopener noreferrer"></a>
+                                </div>
+                            </div>
+                            <div class="meta-card rounded-xl p-3 mt-3">
+                                <div class="text-[11px] uppercase tracking-[0.16em] text-slate-500">Lectura de la conversión</div>
+                                <p class="mt-2 text-sm text-slate-700 leading-6" id="selected-transform"></p>
+                            </div>
+                            <div class="meta-card rounded-xl p-3 mt-3">
+                                <div class="text-[11px] uppercase tracking-[0.16em] text-slate-500">Notas clave de revisión</div>
+                                <ul class="mt-2 space-y-2 text-sm text-slate-700 list-disc list-inside" id="selected-notes"></ul>
+                            </div>
+                        </details>
+                    </div>
+                    <div id="diff-output" class="p-3 md:p-4 overflow-x-auto" style="background: var(--diff-bg);"></div>
+            </section>
+        </section>
+    </main>
+
+    <div id="file-detail-modal" class="hidden fixed inset-0 z-50">
+        <div class="modal-backdrop absolute inset-0" onclick="closeDetailModal()"></div>
+        <div class="relative z-10 min-h-full flex items-center justify-center p-4 lg:p-8">
+            <section class="modal-shell glass-panel w-full max-w-6xl rounded-[28px] overflow-hidden flex flex-col">
+                <div class="px-6 py-5 border-b border-slate-200 bg-white flex items-start justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span id="modal-status" class="pill-badge"></span>
+                            <span id="modal-category" class="pill-neutral"></span>
+                            <span class="section-badge">
+                                <i data-lucide="book-open-text" class="w-3.5 h-3.5"></i>
+                                Lectura tecnica del archivo
+                            </span>
+                        </div>
+                        <h2 id="modal-title" class="mt-3 text-2xl font-bold text-slate-900"></h2>
+                        <p id="modal-overview" class="mt-2 text-sm text-slate-600 leading-7 max-w-4xl"></p>
+                    </div>
+                    <button type="button" onclick="closeDetailModal()" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="overflow-y-auto p-6 space-y-6">
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                            <h3 class="font-semibold text-slate-900">Entradas</h3>
+                            <ul id="modal-inputs" class="mt-3 space-y-2 text-sm text-slate-700 list-disc list-inside"></ul>
+                        </article>
+                        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                            <h3 class="font-semibold text-slate-900">Salidas</h3>
+                            <ul id="modal-outputs" class="mt-3 space-y-2 text-sm text-slate-700 list-disc list-inside"></ul>
+                        </article>
+                    </div>
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                            <h3 class="font-semibold text-slate-900">Dependencias principales</h3>
+                            <ul id="modal-dependencies" class="mt-3 space-y-2 text-sm text-slate-700 list-disc list-inside"></ul>
+                        </article>
+                        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                            <h3 class="font-semibold text-slate-900">Como trabaja internamente</h3>
+                            <ul id="modal-flow" class="mt-3 space-y-2 text-sm text-slate-700 list-disc list-inside"></ul>
+                        </article>
+                    </div>
+                    <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                        <h3 class="font-semibold text-slate-900">Notas de migracion</h3>
+                        <ul id="modal-migration-notes" class="mt-3 space-y-2 text-sm text-slate-700 list-disc list-inside"></ul>
+                    </article>
+                    <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            <h3 class="font-semibold text-slate-900">Alertas de mantenimiento</h3>
+                            <span class="text-xs text-slate-500">Busca parametros, curvas o umbrales pegados en el codigo</span>
+                        </div>
+                        <div id="modal-alerts" class="mt-4 space-y-3"></div>
+                    </article>
+                    <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                        <h3 class="font-semibold text-slate-900">Que significan los bloques principales del codigo</h3>
+                        <p id="modal-code-explanation" class="mt-3 text-sm text-slate-700 leading-7"></p>
+                    </article>
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="font-semibold text-slate-900">Bloque clave en Python</h3>
+                                <span class="text-xs text-slate-500 mono" id="modal-python-label"></span>
+                            </div>
+                            <pre id="modal-python-code" class="modal-code mt-3 mono"></pre>
+                        </article>
+                        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="font-semibold text-slate-900">Referencia del archivo original</h3>
+                                <span class="text-xs text-slate-500 mono" id="modal-matlab-label"></span>
+                            </div>
+                            <pre id="modal-matlab-code" class="modal-code mt-3 mono"></pre>
+                        </article>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div id="debug-panel" class="debug-panel hidden"></div>
+    <script id="audit-data" type="application/json">{"summary": {"generatedAt": "2026-04-07 17:13:59", "matlabCount": 22, "pythonCount": 25, "pairedCount": 22, "pythonOnlyCount": 3, "matlabOnlyCount": 0, "coveragePercent": 100.0, "totalAddedLines": 923, "totalRemovedLines": 611, "mostChangedStem": "params_b_fits", "methodology": "Se inspeccionaron 22 archivos MATLAB canonicos y 25 modulos Python actuales. De ellos, 22 conservan correspondencia directa 1:1 y 3 son modulos de soporte agregados en Python para empaquetado, rutas y utilidades compartidas.", "regenerateCommand": "python generate_migration_audit.py"}, "entries": [{"id": "ELF", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "ELF.m", "pythonName": "ELF.py", "matlabRelPath": "Yang params model/ELF.m", "pythonRelPath": "dengue_model/ELF.py", "category": "Ejecucion principal", "purpose": "Sirve para correr la simulacion principal del modelo. Prepara las condiciones iniciales, lanza el sistema ODE y devuelve la salida general.", "transform": "Se migro de script MATLAB a modulo Python ejecutable por CLI, reemplazando `ode45` por `solve_ivp` y separando la logica en funciones reutilizables.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo es la puerta de entrada del modelo. Orquesta la simulacion completa: arma el tiempo de evaluacion, prepara condiciones iniciales, llama al solucionador y opcionalmente grafica las fracciones de compartimentos.", "inputs": ["`tfinal`, `num_points` y el vector de competencia entre especies.", "Opcionalmente una bandera para activar o no las figuras."], "outputs": ["Un diccionario con `t`, `y` y las fracciones por compartimento.", "Graficas de salida cuando `plot=True`."], "dependencies": ["`initial_state()`", "`solve_model()`", "`compartment_fractions()`", "`figure_setups.setup()`"], "flow": ["Construye el vector temporal de simulacion.", "Obtiene el estado inicial del sistema desde `my_parameters.py`.", "Resuelve el sistema ODE y calcula fracciones de compartimentos.", "Si corresponde, dibuja las curvas para inspeccion visual."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["competition = np.array([args.beta_ba, args.beta_ab], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["labels = [\"Ea frac\", \"La frac\", \"Fa frac\", \"Eb frac\", \"Lb frac\", \"Fb frac\"]", "styles = [\"r-\", \"g--\", \"b-.\", \"c-\", \"m--\", \"y-.\"]", "competition = np.array([args.beta_ba, args.beta_ab], dtype=float)"]}], "codeExplanation": "En el bloque clave se ve la secuencia completa del archivo: preparar entradas, resolver la dinamica y empaquetar la salida utilizable por otros scripts o por linea de comandos.", "pythonSnippet": "def compartment_fractions(y):\n    ae_tot_a = y[:, 0] + y[:, 1] + y[:, 2]\n    ae_tot_b = y[:, 3] + y[:, 4] + y[:, 5]\n    return np.column_stack(\n        [\n            safe_fraction(y[:, 0], ae_tot_a),\n            safe_fraction(y[:, 1], ae_tot_a),\n            safe_fraction(y[:, 2], ae_tot_a),\n            safe_fraction(y[:, 3], ae_tot_b),\n            safe_fraction(y[:, 4], ae_tot_b),\n            safe_fraction(y[:, 5], ae_tot_b),\n        ]\n    )", "matlabSnippet": "clearvars\n% close all\nclc\n\nglobal P\n\nmy_parameters;\n\nGa0 = P.bF_a * (P.psi1_a(1)/(P.mu_E_a(1) + P.psi1_a(1)))*(P.psi2_a(1)/(P.mu_L_a(1) + P.psi2_a(1))) * (P.phi_p_a(1)/P.mu_F_a(1));\nLa0 = P.K * (1 - (1/Ga0));\nFa0 = P.bF_a * (P.psi2_a(1)/P.mu_F_a(1)) * La0;\nEa0 = P.bF_a * (P.phi_p_a(1)/(P.mu_E_a(1) + P.psi1_a(1))) * (P.psi2_a(1)/P.mu_F_a(1)) * La0;\n\n%Gb0 = P.bF_b * (P.psi1_b(1)/(P.mu_E_b(1) + P.psi1_b(1)))*(P.psi2_b(1)/(P.mu_L_b(1) + P.psi2_b(1))) * (P.phi_p_b(1)/P.mu_F_b(1));", "transform": "Se migro de script MATLAB a modulo Python ejecutable por CLI, reemplazando `ode45` por `solve_ivp` y separando la logica en funciones reutilizables."}, "matlabLines": 63, "pythonLines": 74, "addedLines": 62, "removedLines": 51, "matlabCode": "clearvars\n% close all\nclc\n\nglobal P\n\nmy_parameters;\n\nGa0 = P.bF_a * (P.psi1_a(1)/(P.mu_E_a(1) + P.psi1_a(1)))*(P.psi2_a(1)/(P.mu_L_a(1) + P.psi2_a(1))) * (P.phi_p_a(1)/P.mu_F_a(1));\nLa0 = P.K * (1 - (1/Ga0));\nFa0 = P.bF_a * (P.psi2_a(1)/P.mu_F_a(1)) * La0;\nEa0 = P.bF_a * (P.phi_p_a(1)/(P.mu_E_a(1) + P.psi1_a(1))) * (P.psi2_a(1)/P.mu_F_a(1)) * La0;\n\n%Gb0 = P.bF_b * (P.psi1_b(1)/(P.mu_E_b(1) + P.psi1_b(1)))*(P.psi2_b(1)/(P.mu_L_b(1) + P.psi2_b(1))) * (P.phi_p_b(1)/P.mu_F_b(1));\n%Lb0 = P.K * (1 - (1/Gb0));\n%Fb0 = P.bF_b * (P.psi2_b(1)/P.mu_F_b(1)) * Lb0;\n%Eb0 = P.bF_b * (P.phi_p_b(1)/(P.mu_E_b(1) + P.psi1_b(1))) * (P.psi2_b(1)/P.mu_F_b(1)) * Lb0;\n\n\ny0 = [Ea0;La0;Fa0;10;0;0]; % initial condition\ntfinal = 365*1;\ntspan = linspace(0,tfinal,100); % output time points\n\n[t,y] = ode45(@(t,y) myODE_ELF(t,y), tspan, y0); % solve for solution\nEa = y(:,1); La = y(:,2); Fa = y(:,3); \nEb = y(:,4); Lb = y(:,5); Fb = y(:,6);\n\nAE_tot_a=Ea+La+Fa;\nAE_tot_b=Eb+Lb+Fb;\n\n% % plotting\n% figure_setups; hold on\n% plot(t,Ea,'r-',t,La,'g--',t, Fa,'b-.')\n% plot(t,Eb,'c-',t,Lb,'m--',t, Fb,'y-.')\n% xlabel('t')\n% % Set Y-axis limits\n% ylim([0, 800000]); \n% legend('Ea','La','Fa','Eb','Lb','Fb')\n\nEa_frac=Ea./AE_tot_a;\nLa_frac=La./AE_tot_a;\nFa_frac=Fa./AE_tot_a;\n\nEb_frac=Eb./AE_tot_b;\nLb_frac=Lb./AE_tot_b;\nFb_frac=Fb./AE_tot_b;\n\n\n% plotting\nfigure_setups; hold on\nplot(t,Ea_frac,'r-',t,La_frac,'g--',t, Fa_frac,'b-.')\nplot(t,Eb_frac,'c-',t,Lb_frac,'m--',t, Fb_frac,'y-.')\nxlabel('t')\n% Set Y-axis limits\n%ylim([0, 0.09]); \nlegend('Ea frac','La frac','Fa frac','Eb','Lb','Fb')\n\n\n\n%T=16:1:32;\n%mu_V=0.8692-0.159*T+0.01116*T.^2;\n\n\n", "pythonCode": "from __future__ import annotations\n\nimport argparse\n\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nfrom ._utils import safe_fraction\nfrom .figure_setups import setup\nfrom .myODE_ELF import solve_model\nfrom .my_parameters import DEFAULT_COMPETITION, initial_state\n\n\ndef compartment_fractions(y):\n    ae_tot_a = y[:, 0] + y[:, 1] + y[:, 2]\n    ae_tot_b = y[:, 3] + y[:, 4] + y[:, 5]\n    return np.column_stack(\n        [\n            safe_fraction(y[:, 0], ae_tot_a),\n            safe_fraction(y[:, 1], ae_tot_a),\n            safe_fraction(y[:, 2], ae_tot_a),\n            safe_fraction(y[:, 3], ae_tot_b),\n            safe_fraction(y[:, 4], ae_tot_b),\n            safe_fraction(y[:, 5], ae_tot_b),\n        ]\n    )\n\n\ndef run_elf(tfinal=365.0, num_points=100, competition=None, plot=True):\n    if competition is None:\n        competition = DEFAULT_COMPETITION\n\n    y0 = initial_state()\n    t_eval = np.linspace(0.0, tfinal, int(num_points))\n    t, y = solve_model(t_eval=t_eval, y0=y0, p=competition)\n    fractions = compartment_fractions(y)\n\n    if plot:\n        fig, ax = setup()\n        labels = [\"Ea frac\", \"La frac\", \"Fa frac\", \"Eb frac\", \"Lb frac\", \"Fb frac\"]\n        styles = [\"r-\", \"g--\", \"b-.\", \"c-\", \"m--\", \"y-.\"]\n        for idx, (label, style) in enumerate(zip(labels, styles)):\n            ax.plot(t, fractions[:, idx], style, label=label)\n        ax.set_xlabel(\"t\")\n        ax.set_ylabel(\"Fraccion del compartimento\")\n        ax.legend()\n        fig.tight_layout()\n\n    return {\"t\": t, \"y\": y, \"fractions\": fractions}\n\n\ndef main():\n    parser = argparse.ArgumentParser(description=\"Ejecuta la simulacion principal ELF.\")\n    parser.add_argument(\"--tfinal\", type=float, default=365.0)\n    parser.add_argument(\"--num-points\", type=int, default=100)\n    parser.add_argument(\"--beta-ba\", type=float, default=float(DEFAULT_COMPETITION[0]))\n    parser.add_argument(\"--beta-ab\", type=float, default=float(DEFAULT_COMPETITION[1]))\n    parser.add_argument(\"--no-plot\", action=\"store_true\")\n    args = parser.parse_args()\n\n    competition = np.array([args.beta_ba, args.beta_ab], dtype=float)\n    run_elf(\n        tfinal=args.tfinal,\n        num_points=args.num_points,\n        competition=competition,\n        plot=not args.no_plot,\n    )\n\n    if not args.no_plot:\n        plt.show()\n\n\nif __name__ == \"__main__\":\n    main()\n"}, {"id": "myODE_ELF", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "myODE_ELF.m", "pythonName": "myODE_ELF.py", "matlabRelPath": "Yang params model/myODE_ELF.m", "pythonRelPath": "dengue_model/myODE_ELF.py", "category": "Nucleo matematico", "purpose": "Sirve para definir el nucleo matematico del modelo. Aqui estan las ecuaciones diferenciales que describen la dinamica de ambas especies.", "transform": "Se adapto a Python con `numpy`, parametros explicitos de competencia y una funcion auxiliar para resolver el sistema con `solve_ivp`.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Aqui vive el nucleo matematico del modelo. Define las derivadas de los seis compartimentos y la logica temporal para activar la dinamica de albopictus despues del umbral definido.", "inputs": ["`t`: tiempo de simulacion.", "`y`: vector de estado con huevos, larvas y hembras adultas de ambas especies.", "`p`: vector de competencia inter-especies."], "outputs": ["Vector derivada `dydt` con la variacion instantanea de cada compartimento.", "Indirectamente, la solucion completa cuando se usa mediante `solve_model()`."], "dependencies": ["`P` desde `my_parameters.py`", "`solve_ivp`", "tasas biologicas `phi`, `psi` y `mu`"], "flow": ["Separa el estado en seis variables biologicas.", "Calcula nacimientos, desarrollo y mortalidad para aegypti.", "Activa o bloquea la dinamica de albopictus segun el tiempo.", "Devuelve el vector de derivadas para el integrador numerico."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "info", "title": "Umbral temporal fijo dentro del codigo", "message": "El archivo usa un valor temporal fijo para activar una logica del modelo. Si este criterio cambia, no bastara con cambiar datos: habra que modificar codigo.", "evidence": ["if t < 355:", "if t < 355%371 %time to start albopictus"]}], "codeExplanation": "Este snippet muestra la traduccion directa de las ecuaciones del modelo a Python. Cada termino corresponde a fecundidad, desarrollo, competencia o mortalidad.", "pythonSnippet": "def myODE_ELF(t, y, p=None):\n    if p is None:\n        p = DEFAULT_COMPETITION\n\n    bet_ba, bet_ab = np.asarray(p, dtype=float)\n    e_a, l_a, f_a, e_b, l_b, f_b = np.asarray(y, dtype=float)\n\n    et_a = P.phi_p_a(t) * f_a - (P.mu_E_a(t) + P.psi1_a(t)) * e_a\n    lt_a = P.psi1_a(t) * e_a * (1 - ((l_a + l_b - (bet_ba * l_b)) / P.K)) - (\n        P.mu_L_a(t) + P.psi2_a(t)\n    ) * l_a\n    ft_a = P.psi2_a(t) * P.bF_a * l_a - P.mu_F_a(t) * f_a\n\n    if t < 355:", "matlabSnippet": "function dydt = myODE_ELF(t,y,p)\nglobal P\n\nE_a = y(1);\nL_a = y(2);\nF_a = y(3);\nE_b = y(4);\nL_b = y(5);\nF_b = y(6);\n\n% Parameters to estimate\nbet_ba = p(1);\nbet_ab = p(2);", "transform": "Se adapto a Python con `numpy`, parametros explicitos de competencia y una funcion auxiliar para resolver el sistema con `solve_ivp`."}, "matlabLines": 33, "pythonLines": 48, "addedLines": 42, "removedLines": 27, "matlabCode": "function dydt = myODE_ELF(t,y,p)\nglobal P\n\nE_a = y(1);\nL_a = y(2);\nF_a = y(3);\nE_b = y(4);\nL_b = y(5);\nF_b = y(6);\n\n% Parameters to estimate\nbet_ba = p(1);\nbet_ab = p(2);\n\n%aedes aegypti\nEt_a = P.phi_p_a(t) * F_a - (P.mu_E_a(t) + P.psi1_a(t)) * E_a;\nLt_a = P.psi1_a(t)* E_a * (1 - ((L_a + L_b-(bet_ba*L_b))/ P.K)) - (P.mu_L_a(t) + P.psi2_a(t)) * L_a;\nFt_a = P.psi2_a(t) * P.bF_a * L_a - P.mu_F_a(t)*F_a;\n\n%aedes albopictus\nif t < 355%371 %time to start albopictus\n    Et_b = 0;\n    Lt_b = 0;\n    Ft_b = 0;\nelse\n    Et_b = P.phi_p_b(t) * F_b - (P.mu_E_b(t) + P.psi1_b(t)) * E_b;\n    Lt_b = P.psi1_b(t) * E_b * (1 - ((L_a + L_b-(bet_ab*L_a))/ P.K)) - (P.mu_L_b(t) + P.psi2_b(t)) * L_b;\n    Ft_b = P.psi2_b(t) * P.bF_b * L_b - P.mu_F_b(t)*F_b;\nend\n\ndydt = [Et_a;Lt_a;Ft_a;Et_b;Lt_b;Ft_b];\n\nend", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\nfrom scipy.integrate import solve_ivp\n\nfrom .my_parameters import DEFAULT_COMPETITION, P\n\n\ndef myODE_ELF(t, y, p=None):\n    if p is None:\n        p = DEFAULT_COMPETITION\n\n    bet_ba, bet_ab = np.asarray(p, dtype=float)\n    e_a, l_a, f_a, e_b, l_b, f_b = np.asarray(y, dtype=float)\n\n    et_a = P.phi_p_a(t) * f_a - (P.mu_E_a(t) + P.psi1_a(t)) * e_a\n    lt_a = P.psi1_a(t) * e_a * (1 - ((l_a + l_b - (bet_ba * l_b)) / P.K)) - (\n        P.mu_L_a(t) + P.psi2_a(t)\n    ) * l_a\n    ft_a = P.psi2_a(t) * P.bF_a * l_a - P.mu_F_a(t) * f_a\n\n    if t < 355:\n        et_b = 0.0\n        lt_b = 0.0\n        ft_b = 0.0\n    else:\n        et_b = P.phi_p_b(t) * f_b - (P.mu_E_b(t) + P.psi1_b(t)) * e_b\n        lt_b = P.psi1_b(t) * e_b * (1 - ((l_a + l_b - (bet_ab * l_a)) / P.K)) - (\n            P.mu_L_b(t) + P.psi2_b(t)\n        ) * l_b\n        ft_b = P.psi2_b(t) * P.bF_b * l_b - P.mu_F_b(t) * f_b\n\n    return np.array([et_a, lt_a, ft_a, et_b, lt_b, ft_b], dtype=float)\n\n\ndef solve_model(t_eval, y0, p=None, method=\"RK45\"):\n    t_eval = np.asarray(t_eval, dtype=float)\n    y0 = np.asarray(y0, dtype=float)\n    sol = solve_ivp(\n        fun=lambda t, y: myODE_ELF(t, y, p),\n        t_span=(float(t_eval[0]), float(t_eval[-1])),\n        y0=y0,\n        t_eval=t_eval,\n        method=method,\n    )\n    if not sol.success:\n        raise RuntimeError(f\"solve_ivp fallo: {sol.message}\")\n    return sol.t, sol.y.T\n"}, {"id": "my_parameters", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "my_parameters.m", "pythonName": "my_parameters.py", "matlabRelPath": "Yang params model/my_parameters.m", "pythonRelPath": "dengue_model/my_parameters.py", "category": "Configuracion del modelo", "purpose": "Sirve para concentrar los parametros globales y conectar las funciones biologicas del modelo. Es el centro de configuracion del sistema.", "transform": "Se reemplazo `global P` por un `SimpleNamespace` y se hicieron explicitas las dependencias entre modulos.", "notes": ["El estado global MATLAB se encapsulo en un `SimpleNamespace` compartido."], "detail": {"overview": "Centraliza los parametros del modelo y conecta todas las funciones biologicas en una estructura comun. En la migracion reemplaza el viejo `global P` de MATLAB por un objeto Python reutilizable.", "inputs": ["No recibe entradas externas directas al importarse.", "Usa las funciones biologicas de otros modulos para construir el objeto `P`."], "outputs": ["El objeto `P` con parametros y funciones dependientes del tiempo.", "`DEFAULT_COMPETITION`, `equilibrium_a()` e `initial_state()`."], "dependencies": ["modulos `mu*`", "`phi*`", "`psi*`", "`numpy`", "`SimpleNamespace`"], "flow": ["Define constantes base del modelo.", "Importa las funciones biologicas por modulo.", "Las conecta dentro del objeto `P` para uso uniforme.", "Calcula estados de equilibrio e iniciales para iniciar simulaciones."], "migrationNotes": ["El estado global MATLAB se encapsulo en un `SimpleNamespace` compartido."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["DEFAULT_COMPETITION = np.array([0.5, 0.5], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["DEFAULT_COMPETITION = np.array([0.5, 0.5], dtype=float)"]}], "codeExplanation": "El bloque seleccionado deja ver como el archivo arma el entorno de parametros compartidos y como deriva un estado inicial consistente para arrancar el modelo.", "pythonSnippet": "def equilibrium_a(day=1.0):\n    ga0 = (\n        P.bF_a\n        * (P.psi1_a(day) / (P.mu_E_a(day) + P.psi1_a(day)))\n        * (P.psi2_a(day) / (P.mu_L_a(day) + P.psi2_a(day)))\n        * (P.phi_p_a(day) / P.mu_F_a(day))\n    )\n    la0 = P.K * (1.0 - (1.0 / ga0))\n    fa0 = P.bF_a * (P.psi2_a(day) / P.mu_F_a(day)) * la0\n    ea0 = (\n        P.bF_a\n        * (P.phi_p_a(day) / (P.mu_E_a(day) + P.psi1_a(day)))\n        * (P.psi2_a(day) / P.mu_F_a(day))\n        * la0", "matlabSnippet": "global P\nP.K = 10^5;\nP.bF_a = 0.5;\nP.bM_a = 0.5;\nP.sigma_a = 1;\nP.phi_a = @(t)phi_A(t); % \nP.psi1_a = @(t)psi1_a(t); % *\nP.psi2_a = @(t)psi2_a(t);\nP.mu_E_a = @(t)muE_a(t);\nP.mu_L_a = @(t)muL_a(t);   \nP.mu_F_a = @(t)muF_a(t)*3;  \nP.phi_p_a =@(t)phi_p_a(t);\n%P.bet_ab = tbd;", "transform": "Se reemplazo `global P` por un `SimpleNamespace` y se hicieron explicitas las dependencias entre modulos."}, "matlabLines": 28, "pythonLines": 73, "addedLines": 71, "removedLines": 26, "matlabCode": "global P\nP.K = 10^5;\nP.bF_a = 0.5;\nP.bM_a = 0.5;\nP.sigma_a = 1;\nP.phi_a = @(t)phi_A(t); % \nP.psi1_a = @(t)psi1_a(t); % *\nP.psi2_a = @(t)psi2_a(t);\nP.mu_E_a = @(t)muE_a(t);\nP.mu_L_a = @(t)muL_a(t);   \nP.mu_F_a = @(t)muF_a(t)*3;  \nP.phi_p_a =@(t)phi_p_a(t);\n%P.bet_ab = tbd;\n\n%Albopictus parameters\nP.bF_b = 0.5;\nP.bM_b = 0.5;\nP.sigma_b = 1;\nP.phi_b = @(t)phi_B(t);\nP.psi1_b = @(t)psi1_b(t); \nP.psi2_b = @(t)psi2_b(t);\nP.mu_E_b = @(t)muE_b(t);\nP.mu_L_b = @(t)muL_b(t); \nP.mu_F_b = @(t)muF_b(t)*10; \nP.phi_p_b = @(t)phi_p_b(t);\n%P.bet_ba = tbd;\n%P.phi_p_b = 0.1;\n\n", "pythonCode": "from __future__ import annotations\n\nfrom types import SimpleNamespace\n\nimport numpy as np\n\n\nP = SimpleNamespace()\nP.K = 10**5\nP.bF_a = 0.5\nP.bM_a = 0.5\nP.sigma_a = 1.0\nP.bF_b = 0.5\nP.bM_b = 0.5\nP.sigma_b = 1.0\n\n\nfrom .muE_a import muE_a\nfrom .muE_b import muE_b\nfrom .muF_a import muF_a\nfrom .muF_b import muF_b\nfrom .muL_a import muL_a\nfrom .muL_b import muL_b\nfrom .phi_A import phi_A\nfrom .phi_B import phi_B\nfrom .phi_p_a import phi_p_a\nfrom .phi_p_b import phi_p_b\nfrom .psi1_a import psi1_a\nfrom .psi1_b import psi1_b\nfrom .psi2_a import psi2_a\nfrom .psi2_b import psi2_b\n\n\nP.phi_a = phi_A\nP.psi1_a = psi1_a\nP.psi2_a = psi2_a\nP.mu_E_a = muE_a\nP.mu_L_a = muL_a\nP.mu_F_a = lambda t: muF_a(t) * 3.0\nP.phi_p_a = phi_p_a\n\nP.phi_b = phi_B\nP.psi1_b = psi1_b\nP.psi2_b = psi2_b\nP.mu_E_b = muE_b\nP.mu_L_b = muL_b\nP.mu_F_b = lambda t: muF_b(t) * 10.0\nP.phi_p_b = phi_p_b\n\nDEFAULT_COMPETITION = np.array([0.5, 0.5], dtype=float)\n\n\ndef equilibrium_a(day=1.0):\n    ga0 = (\n        P.bF_a\n        * (P.psi1_a(day) / (P.mu_E_a(day) + P.psi1_a(day)))\n        * (P.psi2_a(day) / (P.mu_L_a(day) + P.psi2_a(day)))\n        * (P.phi_p_a(day) / P.mu_F_a(day))\n    )\n    la0 = P.K * (1.0 - (1.0 / ga0))\n    fa0 = P.bF_a * (P.psi2_a(day) / P.mu_F_a(day)) * la0\n    ea0 = (\n        P.bF_a\n        * (P.phi_p_a(day) / (P.mu_E_a(day) + P.psi1_a(day)))\n        * (P.psi2_a(day) / P.mu_F_a(day))\n        * la0\n    )\n    return np.array([ea0, la0, fa0], dtype=float)\n\n\ndef initial_state(day=1.0):\n    ea0, la0, fa0 = equilibrium_a(day)\n    return np.array([ea0, la0, fa0, 10.0, 0.0, 0.0], dtype=float)\n"}, {"id": "temp", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "temp.m", "pythonName": "temp.py", "matlabRelPath": "Yang params model/temp.m", "pythonRelPath": "dengue_model/temp.py", "category": "Dinamica termica", "purpose": "Sirve para generar la temperatura estacional que alimenta a muchos modulos biologicos del modelo.", "transform": "Se preservo la formulacion trigonometrica y se adapto para aceptar escalares y vectores `numpy`.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Genera la temperatura estacional sintetica que alimenta a casi todas las funciones biologicas. Es una pieza transversal del modelo.", "inputs": ["`day` como escalar o vector.", "`method` para escoger la parametrizacion termica."], "outputs": ["Temperatura periodica en el mismo formato del input."], "dependencies": ["`numpy`", "`return_like_input()`"], "flow": ["Convierte la entrada a arreglo numérico.", "Evalua la parametrizacion termica seleccionada.", "Devuelve el resultado respetando si el input era escalar o vector."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["so = 29.45", "c = 0.8218", "k1 = 0.7757"]}, {"level": "warning", "title": "Parametrizacion de temperatura embebida", "message": "La funcion de temperatura usa constantes internas para definir la curva estacional. Si en el futuro quieres reemplazar esos supuestos por una fuente dinamica, este archivo es un punto critico.", "evidence": ["so = 29.45", "c = 0.8218", "k1 = 0.7757"]}], "codeExplanation": "Este snippet enseña la ecuacion periodica que reemplaza a una serie observada y sirve como base para las tasas dependientes de temperatura.", "pythonSnippet": "def temp(day, method=0):\n    day_array = np.asarray(day, dtype=float)\n\n    if method == 1:\n        so = 29.45\n        c = 0.8218\n        k1 = 0.7757\n        k2 = 0.0\n        u1 = 1.546e-08\n        u2 = 0.0\n        v = 0.08216\n        periodic_temp = so * (\n            c\n            + v", "matlabSnippet": "function periodic_temp = temp(day, method)\n    global P\n    \n    if method == 1\n    %These parameters were obtained from the script periodic_temperature\n    %mdl1\n    So=29.45;\n    c=0.8218;\n    k1=0.7757;\n    k2=0;\n    u1=1.546e-08;\n    u2=0;\n    v=0.08216;\n    white_fcn0 = (So.*(c+v.*(1-c).*(0.5.*(1+cos(2.*pi.*((day+90)./365-u1)))).^k1+(1-v).*(1-c).*(0.5.*(1+cos(2.*pi.*(day./365-u2)))).^k2));", "transform": "Se preservo la formulacion trigonometrica y se adapto para aceptar escalares y vectores `numpy`."}, "matlabLines": 32, "pythonLines": 41, "addedLines": 41, "removedLines": 32, "matlabCode": "%We read in the weekly temperature, interpolate the daily temperature, and\n%finally smooths the curve. \nfunction periodic_temp = temp(day, method)\n    global P\n    \n    if method == 1\n    %These parameters were obtained from the script periodic_temperature\n    %mdl1\n    So=29.45;\n    c=0.8218;\n    k1=0.7757;\n    k2=0;\n    u1=1.546e-08;\n    u2=0;\n    v=0.08216;\n    white_fcn0 = (So.*(c+v.*(1-c).*(0.5.*(1+cos(2.*pi.*((day+90)./365-u1)))).^k1+(1-v).*(1-c).*(0.5.*(1+cos(2.*pi.*(day./365-u2)))).^k2));\n    periodic_temp = white_fcn0;\n    else\n    %These parameters were obtained from the script periodic_temperature\n    %mdl4\n    So=27.04;\n    c=0.8949;\n    k1=0.7757;\n    k2=0;\n    u1=2.335e-14;\n    u2=0;\n    v=0.1516;\n    griffin_fcn0 = (So.*(c+v.*(1-c).*(0.5.*(1+cos(2.*pi.*((day+90)./365-u1)))).^k1));\n    periodic_temp = griffin_fcn0;\n    %periodic_temp = 25;\n    end\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\n\n\ndef temp(day, method=0):\n    day_array = np.asarray(day, dtype=float)\n\n    if method == 1:\n        so = 29.45\n        c = 0.8218\n        k1 = 0.7757\n        k2 = 0.0\n        u1 = 1.546e-08\n        u2 = 0.0\n        v = 0.08216\n        periodic_temp = so * (\n            c\n            + v\n            * (1 - c)\n            * (0.5 * (1 + np.cos(2 * np.pi * ((day_array + 90) / 365 - u1)))) ** k1\n            + (1 - v)\n            * (1 - c)\n            * (0.5 * (1 + np.cos(2 * np.pi * (day_array / 365 - u2)))) ** k2\n        )\n    else:\n        so = 27.04\n        c = 0.8949\n        k1 = 0.7757\n        u1 = 2.335e-14\n        v = 0.1516\n        periodic_temp = so * (\n            c\n            + v\n            * (1 - c)\n            * (0.5 * (1 + np.cos(2 * np.pi * ((day_array + 90) / 365 - u1)))) ** k1\n        )\n\n    return return_like_input(day, periodic_temp)\n"}, {"id": "phi_A", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "phi_A.m", "pythonName": "phi_A.py", "matlabRelPath": "Yang params model/phi_A.m", "pythonRelPath": "dengue_model/phi_A.py", "category": "Fecundidad y oviposicion", "purpose": "Sirve para calcular una tasa biologica dependiente de temperatura para la especie A dentro del bloque de fecundidad.", "transform": "Se migro la evaluacion polinomial a `numpy.polyval` manteniendo correspondencia 1:1.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo participa en el bloque de fecundidad y oviposicion. Su responsabilidad es traducir temperatura o parametros biologicos en una tasa de puesta o fecundidad utilizable por el modelo.", "inputs": ["`day` como tiempo de evaluacion."], "outputs": ["Una tasa biologica de fecundidad u oviposicion."], "dependencies": ["`temp()`", "funciones biologicas relacionadas", "`numpy.polyval`"], "flow": ["Obtiene temperatura para el instante evaluado.", "Evalua la curva biologica correspondiente.", "Combina la curva con otros parametros si el archivo representa una tasa compuesta."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFFICIENTS = np.array([-1.515e-04, 1.015e-02, -2.124e-01, 1.8, -5.4], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["COEFFICIENTS = np.array([-1.515e-04, 1.015e-02, -2.124e-01, 1.8, -5.4], dtype=float)", "coefficients = [-1.515*10^(-4),1.015*10^(-2),-2.124*10^(-1),1.8,-5.4];"]}], "codeExplanation": "En esta familia de funciones, la temperatura se convierte en fecundidad o puesta mediante curvas calibradas y combinaciones biologicamente interpretables.", "pythonSnippet": "def phi_A(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function inter_fecundity = phi_A(day)\n    global P \n    coefficients = [-1.515*10^(-4),1.015*10^(-2),-2.124*10^(-1),1.8,-5.4];\n    x_values=temp(day, 0);\n    inter_fecundity = polyval(coefficients, x_values);\n\n    %to plot function: plot(phi_A(1:569))\n    %to plot the profile of the parameters vs temperature\n    %plot(polyval(fit_fecund,linspace(10,35,35)))\nend", "transform": "Se migro la evaluacion polinomial a `numpy.polyval` manteniendo correspondencia 1:1."}, "matlabLines": 10, "pythonLines": 15, "addedLines": 14, "removedLines": 9, "matlabCode": "function inter_fecundity = phi_A(day)\n    global P \n    coefficients = [-1.515*10^(-4),1.015*10^(-2),-2.124*10^(-1),1.8,-5.4];\n    x_values=temp(day, 0);\n    inter_fecundity = polyval(coefficients, x_values);\n\n    %to plot function: plot(phi_A(1:569))\n    %to plot the profile of the parameters vs temperature\n    %plot(polyval(fit_fecund,linspace(10,35,35)))\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nCOEFFICIENTS = np.array([-1.515e-04, 1.015e-02, -2.124e-01, 1.8, -5.4], dtype=float)\n\n\ndef phi_A(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)\n"}, {"id": "phi_B", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "phi_B.m", "pythonName": "phi_B.py", "matlabRelPath": "Yang params model/phi_B.m", "pythonRelPath": "dengue_model/phi_B.py", "category": "Fecundidad y oviposicion", "purpose": "Sirve para calcular la fecundidad de la especie B combinando la tasa de picadura y la fecundidad dependiente de temperatura.", "transform": "Se mantuvo la estructura del producto de polinomios y se adapto a NumPy.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo participa en el bloque de fecundidad y oviposicion. Su responsabilidad es traducir temperatura o parametros biologicos en una tasa de puesta o fecundidad utilizable por el modelo.", "inputs": ["`day` como tiempo de evaluacion."], "outputs": ["Una tasa biologica de fecundidad u oviposicion."], "dependencies": ["`temp()`", "funciones biologicas relacionadas", "`numpy.polyval`"], "flow": ["Obtiene temperatura para el instante evaluado.", "Evalua la curva biologica correspondiente.", "Combina la curva con otros parametros si el archivo representa una tasa compuesta."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFF_FECUND = np.array(", "COEFF_BR = np.array("]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["coeff_fecund = [0.0000116712819,-0.0015833228349,0.0854057774634,-02.3533940540695,35.0378012046865,-263.6780055767482,783.2335484007083];", "coeff_br = [0.000000038135089,-0.000005576944503,0.000324339154486,-0.009624903256283,0.153953856777874,-1.242444992921582,3.931227652768022];"]}], "codeExplanation": "En esta familia de funciones, la temperatura se convierte en fecundidad o puesta mediante curvas calibradas y combinaciones biologicamente interpretables.", "pythonSnippet": "def phi_B(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFF_BR, x_values) * np.polyval(COEFF_FECUND, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function inter_fecundity = phi_B(day)\n    global P \n    coeff_fecund = [0.0000116712819,-0.0015833228349,0.0854057774634,-02.3533940540695,35.0378012046865,-263.6780055767482,783.2335484007083];\n    coeff_br = [0.000000038135089,-0.000005576944503,0.000324339154486,-0.009624903256283,0.153953856777874,-1.242444992921582,3.931227652768022];\n    f_prod = @(x) polyval(coeff_br,x).*polyval(coeff_fecund,x);\n    x_values=temp(day, 0);\n    inter_fecundity = f_prod(x_values);\n    %to plot function: plot(phi_A(1:569))\n    %to plot the profile of the parameters vs temperature\n    %plot(linspace(10, 40, 40), f_prod(linspace(10, 40, 40))) to plot temp dependent params\nend", "transform": "Se mantuvo la estructura del producto de polinomios y se adapto a NumPy."}, "matlabLines": 11, "pythonLines": 38, "addedLines": 38, "removedLines": 11, "matlabCode": "function inter_fecundity = phi_B(day)\n    global P \n    coeff_fecund = [0.0000116712819,-0.0015833228349,0.0854057774634,-02.3533940540695,35.0378012046865,-263.6780055767482,783.2335484007083];\n    coeff_br = [0.000000038135089,-0.000005576944503,0.000324339154486,-0.009624903256283,0.153953856777874,-1.242444992921582,3.931227652768022];\n    f_prod = @(x) polyval(coeff_br,x).*polyval(coeff_fecund,x);\n    x_values=temp(day, 0);\n    inter_fecundity = f_prod(x_values);\n    %to plot function: plot(phi_A(1:569))\n    %to plot the profile of the parameters vs temperature\n    %plot(linspace(10, 40, 40), f_prod(linspace(10, 40, 40))) to plot temp dependent params\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nCOEFF_FECUND = np.array(\n    [\n        0.0000116712819,\n        -0.0015833228349,\n        0.0854057774634,\n        -2.3533940540695,\n        35.0378012046865,\n        -263.6780055767482,\n        783.2335484007083,\n    ],\n    dtype=float,\n)\nCOEFF_BR = np.array(\n    [\n        0.000000038135089,\n        -0.000005576944503,\n        0.000324339154486,\n        -0.009624903256283,\n        0.153953856777874,\n        -1.242444992921582,\n        3.931227652768022,\n    ],\n    dtype=float,\n)\n\n\ndef phi_B(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFF_BR, x_values) * np.polyval(COEFF_FECUND, x_values)\n    return return_like_input(day, result)\n"}, {"id": "phi_p_a", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "phi_p_a.m", "pythonName": "phi_p_a.py", "matlabRelPath": "Yang params model/phi_p_a.m", "pythonRelPath": "dengue_model/phi_p_a.py", "category": "Fecundidad y oviposicion", "purpose": "Sirve para construir la tasa per capita de oviposicion de la especie A a partir de las funciones biologicas base.", "transform": "Se conservo la formula biologica, usando funciones Python y acceso centralizado a parametros.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo participa en el bloque de fecundidad y oviposicion. Su responsabilidad es traducir temperatura o parametros biologicos en una tasa de puesta o fecundidad utilizable por el modelo.", "inputs": ["`day` como tiempo de evaluacion."], "outputs": ["Una tasa biologica de fecundidad u oviposicion."], "dependencies": ["`temp()`", "funciones biologicas relacionadas", "`numpy.polyval`"], "flow": ["Obtiene temperatura para el instante evaluado.", "Evalua la curva biologica correspondiente.", "Combina la curva con otros parametros si el archivo representa una tasa compuesta."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [], "codeExplanation": "En esta familia de funciones, la temperatura se convierte en fecundidad o puesta mediante curvas calibradas y combinaciones biologicamente interpretables.", "pythonSnippet": "def phi_p_a(day):\n    return (phi_A(day) * P.sigma_a) / (muF_a(day) + P.sigma_a)", "matlabSnippet": "function phip_a = phi_p_a(day)\n    global P \n    phip_a = (phi_A(day).* P.sigma_a)./((muF_a(day))+ P.sigma_a);\n    %to plot function: plot(phi_A(1:569))\n    %to plot the profile of the parameters vs temperature\n    %plot(polyval(fit_fecund,linspace(10,35,35)))\nend", "transform": "Se conservo la formula biologica, usando funciones Python y acceso centralizado a parametros."}, "matlabLines": 7, "pythonLines": 9, "addedLines": 9, "removedLines": 7, "matlabCode": "function phip_a = phi_p_a(day)\n    global P \n    phip_a = (phi_A(day).* P.sigma_a)./((muF_a(day))+ P.sigma_a);\n    %to plot function: plot(phi_A(1:569))\n    %to plot the profile of the parameters vs temperature\n    %plot(polyval(fit_fecund,linspace(10,35,35)))\nend\n", "pythonCode": "from __future__ import annotations\n\nfrom .muF_a import muF_a\nfrom .my_parameters import P\nfrom .phi_A import phi_A\n\n\ndef phi_p_a(day):\n    return (phi_A(day) * P.sigma_a) / (muF_a(day) + P.sigma_a)\n"}, {"id": "phi_p_b", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "phi_p_b.m", "pythonName": "phi_p_b.py", "matlabRelPath": "Yang params model/phi_p_b.m", "pythonRelPath": "dengue_model/phi_p_b.py", "category": "Fecundidad y oviposicion", "purpose": "Sirve para construir la tasa per capita de oviposicion de la especie B a partir de las funciones biologicas base.", "transform": "Se conservo la formula biologica, usando funciones Python y acceso centralizado a parametros.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo participa en el bloque de fecundidad y oviposicion. Su responsabilidad es traducir temperatura o parametros biologicos en una tasa de puesta o fecundidad utilizable por el modelo.", "inputs": ["`day` como tiempo de evaluacion."], "outputs": ["Una tasa biologica de fecundidad u oviposicion."], "dependencies": ["`temp()`", "funciones biologicas relacionadas", "`numpy.polyval`"], "flow": ["Obtiene temperatura para el instante evaluado.", "Evalua la curva biologica correspondiente.", "Combina la curva con otros parametros si el archivo representa una tasa compuesta."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [], "codeExplanation": "En esta familia de funciones, la temperatura se convierte en fecundidad o puesta mediante curvas calibradas y combinaciones biologicamente interpretables.", "pythonSnippet": "def phi_p_b(day):\n    return (phi_B(day) * P.sigma_b) / (muF_b(day) + P.sigma_b)", "matlabSnippet": "function phip_b = phi_p_b(day)\n    global P \n    phip_b = (phi_B(day).* P.sigma_b)./((muF_b(day))+ P.sigma_b);\n    %to plot function: plot(phi_b(1:569))\n    %to plot the profile of the parameters vs temperature\n    %plot(polyval(fit_fecund,linspace(10,35,35)))\nend", "transform": "Se conservo la formula biologica, usando funciones Python y acceso centralizado a parametros."}, "matlabLines": 7, "pythonLines": 9, "addedLines": 9, "removedLines": 7, "matlabCode": "function phip_b = phi_p_b(day)\n    global P \n    phip_b = (phi_B(day).* P.sigma_b)./((muF_b(day))+ P.sigma_b);\n    %to plot function: plot(phi_b(1:569))\n    %to plot the profile of the parameters vs temperature\n    %plot(polyval(fit_fecund,linspace(10,35,35)))\nend", "pythonCode": "from __future__ import annotations\n\nfrom .muF_b import muF_b\nfrom .my_parameters import P\nfrom .phi_B import phi_B\n\n\ndef phi_p_b(day):\n    return (phi_B(day) * P.sigma_b) / (muF_b(day) + P.sigma_b)\n"}, {"id": "psi1_a", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "psi1_a.m", "pythonName": "psi1_a.py", "matlabRelPath": "Yang params model/psi1_a.m", "pythonRelPath": "dengue_model/psi1_a.py", "category": "Desarrollo entre etapas", "purpose": "Sirve para estimar una transicion temprana entre etapas en aegypti usando temperatura y mortalidad de huevo.", "transform": "El `polyfit` se movio fuera del camino critico para evitar recalculo en cada llamada.", "notes": ["Los ajustes polinomiales se migraron a NumPy."], "detail": {"overview": "Este archivo calcula una tasa de desarrollo entre etapas del ciclo de vida. Forma parte del motor biologico que mueve el sistema entre huevo, larva y adulto.", "inputs": ["`day` como tiempo o calendario biologico."], "outputs": ["Una tasa de desarrollo dependiente de temperatura."], "dependencies": ["`temp()`", "`numpy.polyval` o `numpy.polyfit`", "parametros del modelo cuando aplica"], "flow": ["Convierte tiempo a temperatura.", "Evalua una curva de desarrollo ajustada a datos biologicos.", "Devuelve la tasa de transicion que usa el sistema ODE."], "migrationNotes": ["Los ajustes polinomiales se migraron a NumPy."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["EP = np.array([0.811, 0.939, 0.96, 0.933, 0.828, 0.485], dtype=float)", "TEMP = np.array([16, 22, 25, 28, 31, 35], dtype=float)", "POLYFIT = np.polyfit(TEMP, EP, 5)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["EP = np.array([0.811, 0.939, 0.96, 0.933, 0.828, 0.485], dtype=float)", "TEMP = np.array([16, 22, 25, 28, 31, 35], dtype=float)", "EP=[0.811, 0.939, 0.96, 0.933, 0.828, 0.485];"]}], "codeExplanation": "El archivo transforma temperatura en velocidad de cambio entre etapas, de manera que el sistema ODE pueda mover masa entre compartimentos.", "pythonSnippet": "def psi1_a(day):\n    ep_vals = np.polyval(POLYFIT, temp(day, 0))\n    return (P.mu_E_a(day) * ep_vals) / (1.0 - ep_vals)", "matlabSnippet": "function psi1A = psi1_a(day)\n    global P \n        %To get psi_1a\n    EP=[0.811, 0.939, 0.96, 0.933, 0.828, 0.485];\n    Temp=[16,22,25,28,31,35];\n\n% % Scatter plot\n% scatter(Temp, EP, 'o', 'MarkerEdgeColor', 'b', 'MarkerFaceColor', 'r');\n% hold on;\n\n% Fit a fifth-degree polynomial\ndegree = 5;\np = polyfit(Temp, EP, degree);", "transform": "El `polyfit` se movio fuera del camino critico para evitar recalculo en cada llamada."}, "matlabLines": 40, "pythonLines": 16, "addedLines": 11, "removedLines": 35, "matlabCode": "%Farnesi 2009\nfunction psi1A = psi1_a(day)\n    global P \n        %To get psi_1a\n    EP=[0.811, 0.939, 0.96, 0.933, 0.828, 0.485];\n    Temp=[16,22,25,28,31,35];\n\n% % Scatter plot\n% scatter(Temp, EP, 'o', 'MarkerEdgeColor', 'b', 'MarkerFaceColor', 'r');\n% hold on;\n\n% Fit a fifth-degree polynomial\ndegree = 5;\np = polyfit(Temp, EP, degree);\n\n% % Generate a smooth curve using the fitted polynomial coefficients\n% x_fit = linspace(min(Temp), max(Temp), 1000);\n% y_fit = polyval(p, x_fit);\n% \n% % Plot the fitted curve\n% plot(x_fit, y_fit, 'g-', 'LineWidth', 2);\n% \n% % Add labels and title\n% xlabel('Temperature (°C)');\n% ylabel('Eclosion %');\n% title('Scatter Plot with Fifth Degree Polynomial Fit');\n% \n% % Add a legend\n% legend('Data Points', 'Fifth Degree Polynomial Fit', 'Location', 'Best');\n% \n% % Add a grid for better readability\n% grid on;\n% \n% % Release the hold on the plot\n% hold off;\n\n    EP_vals=@(day)polyval(p, temp(day, 0));\n    psi1A = (P.mu_E_a(day).*EP_vals(day))./(1-EP_vals(day));\n\nend", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom .my_parameters import P\nfrom .temp import temp\n\n\nEP = np.array([0.811, 0.939, 0.96, 0.933, 0.828, 0.485], dtype=float)\nTEMP = np.array([16, 22, 25, 28, 31, 35], dtype=float)\nPOLYFIT = np.polyfit(TEMP, EP, 5)\n\n\ndef psi1_a(day):\n    ep_vals = np.polyval(POLYFIT, temp(day, 0))\n    return (P.mu_E_a(day) * ep_vals) / (1.0 - ep_vals)\n"}, {"id": "psi1_b", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "psi1_b.m", "pythonName": "psi1_b.py", "matlabRelPath": "Yang params model/psi1_b.m", "pythonRelPath": "dengue_model/psi1_b.py", "category": "Desarrollo entre etapas", "purpose": "Sirve para estimar una tasa de desarrollo dependiente de temperatura para albopictus.", "transform": "Se migro la evaluacion directa del polinomio a NumPy.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo calcula una tasa de desarrollo entre etapas del ciclo de vida. Forma parte del motor biologico que mueve el sistema entre huevo, larva y adulto.", "inputs": ["`day` como tiempo o calendario biologico."], "outputs": ["Una tasa de desarrollo dependiente de temperatura."], "dependencies": ["`temp()`", "`numpy.polyval` o `numpy.polyfit`", "parametros del modelo cuando aplica"], "flow": ["Convierte tiempo a temperatura.", "Evalua una curva de desarrollo ajustada a datos biologicos.", "Devuelve la tasa de transicion que usa el sistema ODE."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFFICIENTS = np.array([-0.0007, 0.0227, 0.2817, -2.3500], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["COEFFICIENTS = np.array([-0.0007, 0.0227, 0.2817, -2.3500], dtype=float)", "coefficients = [-0.0007, 0.0227, 0.2817, -2.3500];"]}], "codeExplanation": "El archivo transforma temperatura en velocidad de cambio entre etapas, de manera que el sistema ODE pueda mover masa entre compartimentos.", "pythonSnippet": "def psi1_b(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function psi1B = psi1_b(day)\n    global P \n    %Coordinates used for coefficient fit\n    %x_values = [10, 15, 25, 30];\n    %y_values = [2, 4.5, 7.4, 6.7];\n    coefficients = [-0.0007, 0.0227, 0.2817, -2.3500];\n    x_values=temp(day, 0);\n    psi1B = polyval(coefficients, x_values);\n    %plot(linspace(13, 33, 40), polyval((coefficients), (linspace(13, 33, 40))))\nend", "transform": "Se migro la evaluacion directa del polinomio a NumPy."}, "matlabLines": 11, "pythonLines": 15, "addedLines": 15, "removedLines": 11, "matlabCode": "%Marini \nfunction psi1B = psi1_b(day)\n    global P \n    %Coordinates used for coefficient fit\n    %x_values = [10, 15, 25, 30];\n    %y_values = [2, 4.5, 7.4, 6.7];\n    coefficients = [-0.0007, 0.0227, 0.2817, -2.3500];\n    x_values=temp(day, 0);\n    psi1B = polyval(coefficients, x_values);\n    %plot(linspace(13, 33, 40), polyval((coefficients), (linspace(13, 33, 40))))\nend", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nCOEFFICIENTS = np.array([-0.0007, 0.0227, 0.2817, -2.3500], dtype=float)\n\n\ndef psi1_b(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)\n"}, {"id": "psi2_a", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "psi2_a.m", "pythonName": "psi2_a.py", "matlabRelPath": "Yang params model/psi2_a.m", "pythonRelPath": "dengue_model/psi2_a.py", "category": "Desarrollo entre etapas", "purpose": "Sirve para calcular otra tasa de desarrollo dependiente de temperatura para la especie A.", "transform": "Se traslado la misma curva polinomial a Python manteniendo coeficientes y dominio operativo.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo calcula una tasa de desarrollo entre etapas del ciclo de vida. Forma parte del motor biologico que mueve el sistema entre huevo, larva y adulto.", "inputs": ["`day` como tiempo o calendario biologico."], "outputs": ["Una tasa de desarrollo dependiente de temperatura."], "dependencies": ["`temp()`", "`numpy.polyval` o `numpy.polyfit`", "parametros del modelo cuando aplica"], "flow": ["Convierte tiempo a temperatura.", "Evalua una curva de desarrollo ajustada a datos biologicos.", "Devuelve la tasa de transicion que usa el sistema ODE."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFFICIENTS = np.array("]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["coefficients2 = [-3.420*10^(-10), 5.153*10^(-8), -3.017*10^(-6),8.723*10^(-5), -1.341*10^(-3), 1.164*10^(-2), -5.723*10^(-2), 1.310*10^(-1)];"]}], "codeExplanation": "El archivo transforma temperatura en velocidad de cambio entre etapas, de manera que el sistema ODE pueda mover masa entre compartimentos.", "pythonSnippet": "def psi2_a(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function psi2_a_output = psi2_a(day)\n    global P \n    coefficients2 = [-3.420*10^(-10), 5.153*10^(-8), -3.017*10^(-6),8.723*10^(-5), -1.341*10^(-3), 1.164*10^(-2), -5.723*10^(-2), 1.310*10^(-1)];\n    x_values=temp(day, 0);\n    psi2_a_output = polyval(coefficients2, x_values);\n    %to plot the profile of the parameters vs temperature\n    %plot((polyval(fit_dev,linspace(10,35,35)).*P.psi2_a)./(P.psi2_a-polyval(fit_dev,linspace(10,35,35))))\nend", "transform": "Se traslado la misma curva polinomial a Python manteniendo coeficientes y dominio operativo."}, "matlabLines": 9, "pythonLines": 18, "addedLines": 18, "removedLines": 9, "matlabCode": "%temperature dependent psi_2a: \nfunction psi2_a_output = psi2_a(day)\n    global P \n    coefficients2 = [-3.420*10^(-10), 5.153*10^(-8), -3.017*10^(-6),8.723*10^(-5), -1.341*10^(-3), 1.164*10^(-2), -5.723*10^(-2), 1.310*10^(-1)];\n    x_values=temp(day, 0);\n    psi2_a_output = polyval(coefficients2, x_values);\n    %to plot the profile of the parameters vs temperature\n    %plot((polyval(fit_dev,linspace(10,35,35)).*P.psi2_a)./(P.psi2_a-polyval(fit_dev,linspace(10,35,35))))\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nCOEFFICIENTS = np.array(\n    [-3.420e-10, 5.153e-08, -3.017e-06, 8.723e-05, -1.341e-03, 1.164e-02, -5.723e-02, 1.310e-01],\n    dtype=float,\n)\n\n\ndef psi2_a(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)\n"}, {"id": "psi2_b", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "psi2_b.m", "pythonName": "psi2_b.py", "matlabRelPath": "Yang params model/psi2_b.m", "pythonRelPath": "dengue_model/psi2_b.py", "category": "Desarrollo entre etapas", "purpose": "Sirve para calcular otra tasa de desarrollo dependiente de temperatura para la especie B.", "transform": "Se traslado la misma curva polinomial a Python manteniendo coeficientes y dominio operativo.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo calcula una tasa de desarrollo entre etapas del ciclo de vida. Forma parte del motor biologico que mueve el sistema entre huevo, larva y adulto.", "inputs": ["`day` como tiempo o calendario biologico."], "outputs": ["Una tasa de desarrollo dependiente de temperatura."], "dependencies": ["`temp()`", "`numpy.polyval` o `numpy.polyfit`", "parametros del modelo cuando aplica"], "flow": ["Convierte tiempo a temperatura.", "Evalua una curva de desarrollo ajustada a datos biologicos.", "Devuelve la tasa de transicion que usa el sistema ODE."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFFICIENTS = np.array("]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["coefficients2 = [0.000000003111255, -0.000000510683515, 0.000032364878841, -0.001035204429043, 0.017823943160582, -0.150962097623919, 0.491223455446361];"]}], "codeExplanation": "El archivo transforma temperatura en velocidad de cambio entre etapas, de manera que el sistema ODE pueda mover masa entre compartimentos.", "pythonSnippet": "def psi2_b(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function psi2_b_output = psi2_b(day)\n    global P \n    coefficients2 = [0.000000003111255, -0.000000510683515, 0.000032364878841, -0.001035204429043, 0.017823943160582, -0.150962097623919, 0.491223455446361];\n    x_values=temp(day, 0);\n    psi2_b_output = polyval(coefficients2, x_values);\n    %to plot the profile of the parameters vs temperature\n    %plot(linspace(10, 40, 40), polyval((coefficients2), (linspace(10, 40, 40))))\nend", "transform": "Se traslado la misma curva polinomial a Python manteniendo coeficientes y dominio operativo."}, "matlabLines": 9, "pythonLines": 26, "addedLines": 26, "removedLines": 9, "matlabCode": "%temperature dependent psi_2b from Mordecai: \nfunction psi2_b_output = psi2_b(day)\n    global P \n    coefficients2 = [0.000000003111255, -0.000000510683515, 0.000032364878841, -0.001035204429043, 0.017823943160582, -0.150962097623919, 0.491223455446361];\n    x_values=temp(day, 0);\n    psi2_b_output = polyval(coefficients2, x_values);\n    %to plot the profile of the parameters vs temperature\n    %plot(linspace(10, 40, 40), polyval((coefficients2), (linspace(10, 40, 40))))\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nCOEFFICIENTS = np.array(\n    [\n        0.000000003111255,\n        -0.000000510683515,\n        0.000032364878841,\n        -0.001035204429043,\n        0.017823943160582,\n        -0.150962097623919,\n        0.491223455446361,\n    ],\n    dtype=float,\n)\n\n\ndef psi2_b(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)\n"}, {"id": "muE_a", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "muE_a.m", "pythonName": "muE_a.py", "matlabRelPath": "Yang params model/muE_a.m", "pythonRelPath": "dengue_model/muE_a.py", "category": "Mortalidad", "purpose": "Sirve para calcular la mortalidad de huevos de aegypti en funcion de la temperatura.", "transform": "Se mantuvo la curva polinomial y se adapto a `numpy.polyval` y retorno vectorizable.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo encapsula una tasa de mortalidad biologica. Toma el tiempo, lo traduce a temperatura y devuelve la curva numerica que usa el modelo para esa etapa o especie.", "inputs": ["`day` como escalar o vector temporal."], "outputs": ["Una tasa numerica de mortalidad lista para usarse dentro del sistema ODE."], "dependencies": ["`temp()`", "`numpy.polyval` o relaciones polinomiales equivalentes", "`return_like_input()` cuando aplica"], "flow": ["Convierte tiempo a temperatura mediante `temp(day, 0)`.", "Evalua uno o varios polinomios biologicos.", "Devuelve la tasa final en el formato esperado por el resto del modelo."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFFICIENTS = np.array([-0.0, 0.0004, -0.0168, 0.3890, -4.3705, 19.0735], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["COEFFICIENTS = np.array([-0.0, 0.0004, -0.0168, 0.3890, -4.3705, 19.0735], dtype=float)", "coefficients = [-0.0000,0.0004,-0.0168, 0.3890,-4.3705,19.0735];"]}], "codeExplanation": "El patron comun de estos archivos es: obtener temperatura, evaluar la curva calibrada y devolver una tasa escalar o vectorial consistente.", "pythonSnippet": "def muE_a(day):\n    x_values = temp(day, 0)\n    result = 1.0 / np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function mu_E_a = muE_a(day)\n    global P \n    %     %To get Mu_E\n    % CE=[489.3, 98.3, 77.4, 61.6, 48.4, 50.3];\n    % Temp=[16,22,25,28,31,35];\n    % mu_E = (1./CE) *24;\n    % \n    % % Fit a polynomial using polyfit\n    % coefficients = polyfit(Temp, mu_E, 5);\n    coefficients = [-0.0000,0.0004,-0.0168, 0.3890,-4.3705,19.0735];\n    % Generate points for the fitted polynomial curve\n    x_values=temp(day, 0);\n    mu_E_a = 1./polyval(coefficients, x_values);\n    %plot(linspace(13, 33, 40), 1./polyval((coefficients), (linspace(13,", "transform": "Se mantuvo la curva polinomial y se adapto a `numpy.polyval` y retorno vectorizable."}, "matlabLines": 17, "pythonLines": 15, "addedLines": 15, "removedLines": 17, "matlabCode": "%Farnesi 2009\nfunction mu_E_a = muE_a(day)\n    global P \n    %     %To get Mu_E\n    % CE=[489.3, 98.3, 77.4, 61.6, 48.4, 50.3];\n    % Temp=[16,22,25,28,31,35];\n    % mu_E = (1./CE) *24;\n    % \n    % % Fit a polynomial using polyfit\n    % coefficients = polyfit(Temp, mu_E, 5);\n    coefficients = [-0.0000,0.0004,-0.0168, 0.3890,-4.3705,19.0735];\n    % Generate points for the fitted polynomial curve\n    x_values=temp(day, 0);\n    mu_E_a = 1./polyval(coefficients, x_values);\n    %plot(linspace(13, 33, 40), 1./polyval((coefficients), (linspace(13,\n    %33, 40)))) %to plot parameter vs temperature\nend", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nCOEFFICIENTS = np.array([-0.0, 0.0004, -0.0168, 0.3890, -4.3705, 19.0735], dtype=float)\n\n\ndef muE_a(day):\n    x_values = temp(day, 0)\n    result = 1.0 / np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)\n"}, {"id": "muE_b", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "muE_b.m", "pythonName": "muE_b.py", "matlabRelPath": "Yang params model/muE_b.m", "pythonRelPath": "dengue_model/muE_b.py", "category": "Mortalidad", "purpose": "Sirve para calcular la mortalidad de huevos de albopictus usando la relacion entre desarrollo y supervivencia.", "transform": "Se conservo la formula derivada y se expreso en operaciones `numpy`.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo encapsula una tasa de mortalidad biologica. Toma el tiempo, lo traduce a temperatura y devuelve la curva numerica que usa el modelo para esa etapa o especie.", "inputs": ["`day` como escalar o vector temporal."], "outputs": ["Una tasa numerica de mortalidad lista para usarse dentro del sistema ODE."], "dependencies": ["`temp()`", "`numpy.polyval` o relaciones polinomiales equivalentes", "`return_like_input()` cuando aplica"], "flow": ["Convierte tiempo a temperatura mediante `temp(day, 0)`.", "Evalua uno o varios polinomios biologicos.", "Devuelve la tasa final en el formato esperado por el resto del modelo."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["EGG_L1_COEFFS = np.array([-0.0002, 0.0139, -0.2278, 1.1650], dtype=float)", "DEV_RATE_COEFFS = np.array([-0.0007, 0.0227, 0.2817, -2.3500], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["EGG_L1_COEFFS = np.array([-0.0002, 0.0139, -0.2278, 1.1650], dtype=float)", "DEV_RATE_COEFFS = np.array([-0.0007, 0.0227, 0.2817, -2.3500], dtype=float)", "Egg_L1_coeffs = [-0.0002, 0.0139, -0.2278, 1.1650];"]}], "codeExplanation": "El patron comun de estos archivos es: obtener temperatura, evaluar la curva calibrada y devolver una tasa escalar o vectorial consistente.", "pythonSnippet": "def muE_b(day):\n    x_values = temp(day, 0)\n    dev_rate = np.polyval(DEV_RATE_COEFFS, x_values)\n    egg_l1 = np.polyval(EGG_L1_COEFFS, x_values)\n    result = dev_rate / egg_l1 - dev_rate\n    return return_like_input(day, result)", "matlabSnippet": "function mu_E_b = muE_b(day)%shifted curve by 2.5 to remain positive\n    global P \n    Egg_L1_coeffs = [-0.0002, 0.0139, -0.2278, 1.1650];\n    dev_rate = [-0.0007, 0.0227, 0.2817, -2.3500];\n    muE_b = @(x) polyval(dev_rate, x)./polyval(Egg_L1_coeffs,x)-polyval(dev_rate,x);\n    x_values=temp(day, 0);\n    mu_E_b = muE_b(x_values);\n    %plot(linspace(13, 40, 40), muE_b(linspace(13, 40, 40)))\nend", "transform": "Se conservo la formula derivada y se expreso en operaciones `numpy`."}, "matlabLines": 10, "pythonLines": 18, "addedLines": 18, "removedLines": 10, "matlabCode": "%Marini cd '/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/code/Yang params model'\nfunction mu_E_b = muE_b(day)%shifted curve by 2.5 to remain positive\n    global P \n    Egg_L1_coeffs = [-0.0002, 0.0139, -0.2278, 1.1650];\n    dev_rate = [-0.0007, 0.0227, 0.2817, -2.3500];\n    muE_b = @(x) polyval(dev_rate, x)./polyval(Egg_L1_coeffs,x)-polyval(dev_rate,x);\n    x_values=temp(day, 0);\n    mu_E_b = muE_b(x_values);\n    %plot(linspace(13, 40, 40), muE_b(linspace(13, 40, 40)))\nend", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nEGG_L1_COEFFS = np.array([-0.0002, 0.0139, -0.2278, 1.1650], dtype=float)\nDEV_RATE_COEFFS = np.array([-0.0007, 0.0227, 0.2817, -2.3500], dtype=float)\n\n\ndef muE_b(day):\n    x_values = temp(day, 0)\n    dev_rate = np.polyval(DEV_RATE_COEFFS, x_values)\n    egg_l1 = np.polyval(EGG_L1_COEFFS, x_values)\n    result = dev_rate / egg_l1 - dev_rate\n    return return_like_input(day, result)\n"}, {"id": "muF_a", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "muF_a.m", "pythonName": "muF_a.py", "matlabRelPath": "Yang params model/muF_a.m", "pythonRelPath": "dengue_model/muF_a.py", "category": "Mortalidad", "purpose": "Sirve para calcular la mortalidad de hembras adultas de aegypti.", "transform": "Se preservo la curva termodependiente y luego se escala desde `my_parameters`.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo encapsula una tasa de mortalidad biologica. Toma el tiempo, lo traduce a temperatura y devuelve la curva numerica que usa el modelo para esa etapa o especie.", "inputs": ["`day` como escalar o vector temporal."], "outputs": ["Una tasa numerica de mortalidad lista para usarse dentro del sistema ODE."], "dependencies": ["`temp()`", "`numpy.polyval` o relaciones polinomiales equivalentes", "`return_like_input()` cuando aplica"], "flow": ["Convierte tiempo a temperatura mediante `temp(day, 0)`.", "Evalua uno o varios polinomios biologicos.", "Devuelve la tasa final en el formato esperado por el resto del modelo."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFFICIENTS = np.array("]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["coefficients = [3.809*10^(-6), -3.408*10^(-4), 1.116*10^(-2), -1.590*10^(-1), 8.692*10^(-1)];"]}], "codeExplanation": "El patron comun de estos archivos es: obtener temperatura, evaluar la curva calibrada y devolver una tasa escalar o vectorial consistente.", "pythonSnippet": "def muF_a(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function inter_lifespan = muF_a(day)\n    global P \n    coefficients = [3.809*10^(-6), -3.408*10^(-4), 1.116*10^(-2), -1.590*10^(-1), 8.692*10^(-1)];\n    x_values=temp(day, 0);\n    inter_lifespan = polyval(coefficients, x_values);\n    %plot(linspace(10,40,40), polyval((coefficients), (linspace(10,40,40))))\nend", "transform": "Se preservo la curva termodependiente y luego se escala desde `my_parameters`."}, "matlabLines": 8, "pythonLines": 18, "addedLines": 18, "removedLines": 8, "matlabCode": "%YANG 2011\nfunction inter_lifespan = muF_a(day)\n    global P \n    coefficients = [3.809*10^(-6), -3.408*10^(-4), 1.116*10^(-2), -1.590*10^(-1), 8.692*10^(-1)];\n    x_values=temp(day, 0);\n    inter_lifespan = polyval(coefficients, x_values);\n    %plot(linspace(10,40,40), polyval((coefficients), (linspace(10,40,40))))\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nCOEFFICIENTS = np.array(\n    [3.809e-06, -3.408e-04, 1.116e-02, -1.590e-01, 8.692e-01],\n    dtype=float,\n)\n\n\ndef muF_a(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)\n"}, {"id": "muF_b", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "muF_b.m", "pythonName": "muF_b.py", "matlabRelPath": "Yang params model/muF_b.m", "pythonRelPath": "dengue_model/muF_b.py", "category": "Mortalidad", "purpose": "Sirve para calcular la mortalidad de hembras adultas de albopictus.", "transform": "Se mantuvo el ajuste polinomial y la inversion asociada al lifespan.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo encapsula una tasa de mortalidad biologica. Toma el tiempo, lo traduce a temperatura y devuelve la curva numerica que usa el modelo para esa etapa o especie.", "inputs": ["`day` como escalar o vector temporal."], "outputs": ["Una tasa numerica de mortalidad lista para usarse dentro del sistema ODE."], "dependencies": ["`temp()`", "`numpy.polyval` o relaciones polinomiales equivalentes", "`return_like_input()` cuando aplica"], "flow": ["Convierte tiempo a temperatura mediante `temp(day, 0)`.", "Evalua uno o varios polinomios biologicos.", "Devuelve la tasa final en el formato esperado por el resto del modelo."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFFICIENTS = 1000.0 * np.array("]}], "codeExplanation": "El patron comun de estos archivos es: obtener temperatura, evaluar la curva calibrada y devolver una tasa escalar o vectorial consistente.", "pythonSnippet": "def muF_b(day):\n    x_values = temp(day, 0)\n    result = 1.0 / np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function inter_lifespan = muF_b(day)\n    global P \n    coefficients = 1000 .* [-0.000000280151205,   0.000038830897223,  -0.002030126893948,   0.049162298893216,  -0.540751134100950,   2.180587170776479];\n    x_values=temp(day, 0);\n    inter_lifespan = 1./polyval(coefficients, x_values);\n    %plot(linspace(13, 33, 40), 1./polyval((coefficients), (linspace(13, 33, 40))))\nend", "transform": "Se mantuvo el ajuste polinomial y la inversion asociada al lifespan."}, "matlabLines": 8, "pythonLines": 25, "addedLines": 25, "removedLines": 8, "matlabCode": "%Mordecai\nfunction inter_lifespan = muF_b(day)\n    global P \n    coefficients = 1000 .* [-0.000000280151205,   0.000038830897223,  -0.002030126893948,   0.049162298893216,  -0.540751134100950,   2.180587170776479];\n    x_values=temp(day, 0);\n    inter_lifespan = 1./polyval(coefficients, x_values);\n    %plot(linspace(13, 33, 40), 1./polyval((coefficients), (linspace(13, 33, 40))))\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nCOEFFICIENTS = 1000.0 * np.array(\n    [\n        -0.000000280151205,\n        0.000038830897223,\n        -0.002030126893948,\n        0.049162298893216,\n        -0.540751134100950,\n        2.180587170776479,\n    ],\n    dtype=float,\n)\n\n\ndef muF_b(day):\n    x_values = temp(day, 0)\n    result = 1.0 / np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)\n"}, {"id": "muL_a", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "muL_a.m", "pythonName": "muL_a.py", "matlabRelPath": "Yang params model/muL_a.m", "pythonRelPath": "dengue_model/muL_a.py", "category": "Mortalidad", "purpose": "Sirve para calcular la mortalidad larvaria de aegypti.", "transform": "Se reprodujo el efecto de `fliplr` almacenando los coeficientes en el orden correcto para `numpy.polyval`.", "notes": ["Se reviso el orden de coeficientes para reproducir el comportamiento de `fliplr`."], "detail": {"overview": "Este archivo encapsula una tasa de mortalidad biologica. Toma el tiempo, lo traduce a temperatura y devuelve la curva numerica que usa el modelo para esa etapa o especie.", "inputs": ["`day` como escalar o vector temporal."], "outputs": ["Una tasa numerica de mortalidad lista para usarse dentro del sistema ODE."], "dependencies": ["`temp()`", "`numpy.polyval` o relaciones polinomiales equivalentes", "`return_like_input()` cuando aplica"], "flow": ["Convierte tiempo a temperatura mediante `temp(day, 0)`.", "Evalua uno o varios polinomios biologicos.", "Devuelve la tasa final en el formato esperado por el resto del modelo."], "migrationNotes": ["Se reviso el orden de coeficientes para reproducir el comportamiento de `fliplr`."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["COEFFICIENTS = np.array([6.794e-06, -6.778e-04, 2.457e-02, -3.797e-01, 2.130], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["COEFFICIENTS = np.array([6.794e-06, -6.778e-04, 2.457e-02, -3.797e-01, 2.130], dtype=float)", "coefficients = [2.130, -3.797*10^(-1), 2.457*10^(-2), -6.778*10^(-4), 6.794*10^(-6)];"]}], "codeExplanation": "El patron comun de estos archivos es: obtener temperatura, evaluar la curva calibrada y devolver una tasa escalar o vectorial consistente.", "pythonSnippet": "def muL_a(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)", "matlabSnippet": "function muL_a = muL_a(day)\n    global P \n    coefficients = [2.130, -3.797*10^(-1), 2.457*10^(-2), -6.778*10^(-4), 6.794*10^(-6)];\n    x_values=temp(day, 0);\n    muL_a = polyval(fliplr(coefficients), x_values);\n    %plot(linspace(10,40,40), polyval(fliplr(coefficients),\n    %(linspace(10,40,40))))  to plot temp dependent params\nend", "transform": "Se reprodujo el efecto de `fliplr` almacenando los coeficientes en el orden correcto para `numpy.polyval`."}, "matlabLines": 9, "pythonLines": 17, "addedLines": 17, "removedLines": 9, "matlabCode": "%YANG 2011\nfunction muL_a = muL_a(day)\n    global P \n    coefficients = [2.130, -3.797*10^(-1), 2.457*10^(-2), -6.778*10^(-4), 6.794*10^(-6)];\n    x_values=temp(day, 0);\n    muL_a = polyval(fliplr(coefficients), x_values);\n    %plot(linspace(10,40,40), polyval(fliplr(coefficients),\n    %(linspace(10,40,40))))  to plot temp dependent params\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\n# MATLAB usa polyval(fliplr(coefficients), x), asi que aqui los almacenamos\n# ya invertidos para reproducir exactamente ese comportamiento.\nCOEFFICIENTS = np.array([6.794e-06, -6.778e-04, 2.457e-02, -3.797e-01, 2.130], dtype=float)\n\n\ndef muL_a(day):\n    x_values = temp(day, 0)\n    result = np.polyval(COEFFICIENTS, x_values)\n    return return_like_input(day, result)\n"}, {"id": "muL_b", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "muL_b.m", "pythonName": "muL_b.py", "matlabRelPath": "Yang params model/muL_b.m", "pythonRelPath": "dengue_model/muL_b.py", "category": "Mortalidad", "purpose": "Sirve para calcular la mortalidad larvaria de albopictus combinando desarrollo y supervivencia.", "transform": "Se mantuvo la formula compuesta con polinomios de NumPy.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Este archivo encapsula una tasa de mortalidad biologica. Toma el tiempo, lo traduce a temperatura y devuelve la curva numerica que usa el modelo para esa etapa o especie.", "inputs": ["`day` como escalar o vector temporal."], "outputs": ["Una tasa numerica de mortalidad lista para usarse dentro del sistema ODE."], "dependencies": ["`temp()`", "`numpy.polyval` o relaciones polinomiales equivalentes", "`return_like_input()` cuando aplica"], "flow": ["Convierte tiempo a temperatura mediante `temp(day, 0)`.", "Evalua uno o varios polinomios biologicos.", "Devuelve la tasa final en el formato esperado por el resto del modelo."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["PSI_2B_COEFFS = np.array(", "EAS_COEFFS = np.array("]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["psi_2b_coeffs =[0.000000003111255, -0.000000510683515, 0.000032364878841, -0.001035204429043, 0.017823943160582, -0.150962097623919, 0.491223455446361];", "eas_coeffs =  [0.000000027595905,-0.000003970863730, 0.000231119129084,-0.006946993580407, 0.109839713053612,-0.777893789484992,1.910374982086748];"]}], "codeExplanation": "El patron comun de estos archivos es: obtener temperatura, evaluar la curva calibrada y devolver una tasa escalar o vectorial consistente.", "pythonSnippet": "def muL_b(day):\n    x_values = temp(day, 0)\n    psi_2b = np.polyval(PSI_2B_COEFFS, x_values)\n    eas = np.polyval(EAS_COEFFS, x_values)\n    result = psi_2b / eas - psi_2b\n    return return_like_input(day, result)", "matlabSnippet": "function muL_b = muL_b(day)\n    global P \n    psi_2b_coeffs =[0.000000003111255, -0.000000510683515, 0.000032364878841, -0.001035204429043, 0.017823943160582, -0.150962097623919, 0.491223455446361];\n    eas_coeffs =  [0.000000027595905,-0.000003970863730, 0.000231119129084,-0.006946993580407, 0.109839713053612,-0.777893789484992,1.910374982086748];\n    mu_L_b = @(x) (polyval(psi_2b_coeffs, x)./polyval(eas_coeffs,x))-polyval(psi_2b_coeffs,x);\n    x_values=temp(day, 0);\n    muL_b = mu_L_b(x_values);\n    %plot(linspace(10, 40, 40), mu_L_b(linspace(10, 40, 40))) to plot temp dependent params\nend", "transform": "Se mantuvo la formula compuesta con polinomios de NumPy."}, "matlabLines": 10, "pythonLines": 40, "addedLines": 40, "removedLines": 10, "matlabCode": "%Mordecai\nfunction muL_b = muL_b(day)\n    global P \n    psi_2b_coeffs =[0.000000003111255, -0.000000510683515, 0.000032364878841, -0.001035204429043, 0.017823943160582, -0.150962097623919, 0.491223455446361];\n    eas_coeffs =  [0.000000027595905,-0.000003970863730, 0.000231119129084,-0.006946993580407, 0.109839713053612,-0.777893789484992,1.910374982086748];\n    mu_L_b = @(x) (polyval(psi_2b_coeffs, x)./polyval(eas_coeffs,x))-polyval(psi_2b_coeffs,x);\n    x_values=temp(day, 0);\n    muL_b = mu_L_b(x_values);\n    %plot(linspace(10, 40, 40), mu_L_b(linspace(10, 40, 40))) to plot temp dependent params\nend\n", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\nfrom ._utils import return_like_input\nfrom .temp import temp\n\n\nPSI_2B_COEFFS = np.array(\n    [\n        0.000000003111255,\n        -0.000000510683515,\n        0.000032364878841,\n        -0.001035204429043,\n        0.017823943160582,\n        -0.150962097623919,\n        0.491223455446361,\n    ],\n    dtype=float,\n)\nEAS_COEFFS = np.array(\n    [\n        0.000000027595905,\n        -0.000003970863730,\n        0.000231119129084,\n        -0.006946993580407,\n        0.109839713053612,\n        -0.777893789484992,\n        1.910374982086748,\n    ],\n    dtype=float,\n)\n\n\ndef muL_b(day):\n    x_values = temp(day, 0)\n    psi_2b = np.polyval(PSI_2B_COEFFS, x_values)\n    eas = np.polyval(EAS_COEFFS, x_values)\n    result = psi_2b / eas - psi_2b\n    return return_like_input(day, result)\n"}, {"id": "error_fun_betas", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "error_fun_betas.m", "pythonName": "error_fun_betas.py", "matlabRelPath": "Yang params model/error_fun_betas.m", "pythonRelPath": "dengue_model/error_fun_betas.py", "category": "Calibracion y ajuste", "purpose": "Sirve para medir que tan bien se ajusta el modelo a los datos reales de campo. Ejecuta la simulacion, interpola resultados y calcula el error total.", "transform": "Se corrigio el bug del tiempo de interpolacion, se estructuro la carga de datos y se unifico el error de ambas especies.", "notes": ["La interpolacion de series se migro a `numpy.interp`.", "La carga de `.mat` se migro a `scipy.io.loadmat`.", "Se corrigio el uso del vector temporal para la interpolacion y se expuso una API reusable."], "detail": {"overview": "Este archivo se usa para calibracion. Corre el modelo con un vector de betas, interpola la salida en los tiempos de muestreo y calcula el error cuadratico frente a los datos observados.", "inputs": ["Vector `p` con betas a calibrar.", "Opcionalmente datos ya cargados y banderas de `plot`, `verbose` o `return_details`."], "outputs": ["El error total del ajuste.", "Opcionalmente un paquete detallado con series, interpolaciones y errores parciales."], "dependencies": ["`load_field_data()`", "`simulate_segments()`", "`numpy.interp`", "`matplotlib`"], "flow": ["Carga o recibe los datos de campo.", "Simula el modelo por segmentos con los betas propuestos.", "Interpola la solucion al calendario de observaciones.", "Calcula el error para aegypti y albopictus y los combina."], "migrationNotes": ["La interpolacion de series se migro a `numpy.interp`.", "La carga de `.mat` se migro a `scipy.io.loadmat`.", "Se corrigio el uso del vector temporal para la interpolacion y se expuso una API reusable."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["y01 = np.array([ea0, la0, fa0, 0.0, 0.0, 0.0], dtype=float)", "y02 = np.array([y1[-1, 0], y1[-1, 1], y1[-1, 2], 0.0, 0.0, 1.0], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["y01 = np.array([ea0, la0, fa0, 0.0, 0.0, 0.0], dtype=float)", "y02 = np.array([y1[-1, 0], y1[-1, 1], y1[-1, 2], 0.0, 0.0, 1.0], dtype=float)", "labels = [\"Ea frac\", \"La frac\", \"Fa frac\", \"Eb frac\", \"Lb frac\", \"Fb frac\"]"]}, {"level": "info", "title": "Umbral temporal fijo dentro del codigo", "message": "El archivo usa un valor temporal fijo para activar una logica del modelo. Si este criterio cambia, no bastara con cambiar datos: habra que modificar codigo.", "evidence": ["final_day = max(float(np.ceil(data.days_passed[-1])), 355.0)", "if final_day <= 355.0:", "tspan2 = np.arange(355.0, final_day + 1.0, 1.0)"]}], "codeExplanation": "Aqui se ve la logica de calibracion: transformar una corrida del modelo en un numero unico de error que luego puede minimizarse.", "pythonSnippet": "class FieldData:\n    temp_date: np.ndarray\n    days_passed: np.ndarray\n    num_aeg: np.ndarray\n    num_alb: np.ndarray\n\n\ndef _load_table_struct(mat_path):\n    raw = loadmat(mat_path, squeeze_me=True, struct_as_record=False)\n    table_data = raw[\"table_data\"]\n    return table_data\n\n\ndef load_field_data(mat_path=None, rebuild_if_missing=True):", "matlabSnippet": "function err = error_fun_betas(p)\n    % Function to calculate the sum of squared errors between observed data and simulated model     \n\n    % Initial conditions\n    global P\n\n    my_parameters;\n    data = load('full_table_Lita.mat');\n\n    Ga0 = P.bF_a * (P.psi1_a(1)/(P.mu_E_a(1) + P.psi1_a(1)))*(P.psi2_a(1)/(P.mu_L_a(1) + P.psi2_a(1))) * (P.phi_p_a(1)/P.mu_F_a(1));\n    La0 = P.K * (1 - (1/Ga0));\n    Fa0 = P.bF_a * (P.psi2_a(1)/P.mu_F_a(1)) * La0;\n    Ea0 = P.bF_a * (P.phi_p_a(1)/(P.mu_E_a(1) + P.psi1_a(1))) * (P.psi2_a(1)/P.mu_F_a(1)) * La0;", "transform": "Se corrigio el bug del tiempo de interpolacion, se estructuro la carga de datos y se unifico el error de ambas especies."}, "matlabLines": 77, "pythonLines": 128, "addedLines": 119, "removedLines": 68, "matlabCode": "function err = error_fun_betas(p)\n    % Function to calculate the sum of squared errors between observed data and simulated model     \n\n    % Initial conditions\n    global P\n\n    my_parameters;\n    data = load('full_table_Lita.mat');\n\n    Ga0 = P.bF_a * (P.psi1_a(1)/(P.mu_E_a(1) + P.psi1_a(1)))*(P.psi2_a(1)/(P.mu_L_a(1) + P.psi2_a(1))) * (P.phi_p_a(1)/P.mu_F_a(1));\n    La0 = P.K * (1 - (1/Ga0));\n    Fa0 = P.bF_a * (P.psi2_a(1)/P.mu_F_a(1)) * La0;\n    Ea0 = P.bF_a * (P.phi_p_a(1)/(P.mu_E_a(1) + P.psi1_a(1))) * (P.psi2_a(1)/P.mu_F_a(1)) * La0;\n\n    y01 = [Ea0;La0;Fa0;0;0;0]; % initial condition\n    \n\n    % Time span\n    tfinal = [data.table_data.Days_Passed];\n    tspan1 = linspace(0,355,355); %tspan1 = linspace(0,371,371);\n    tspan2 = linspace(355,tfinal(end),918); % output time points tspan2 = linspace(372,tfinal(end),918);\n\n    [t1,y1] = ode45(@(t,y) myODE_ELF(t,y,p), tspan1, y01); % solve for solution\n    y02 = [y1(end,1);y1(end,2);y1(end,3);0;0;1];%40,36\n    [t2,y2] = ode45(@(t,y) myODE_ELF(t,y,p), tspan2, y02);\n    \n    t = [t1;t2];\n    y = [y1 ; y2];\n\n    Ea = y(:,1); La = y(:,2); Fa = y(:,3); \n    Eb = y(:,4); Lb = y(:,5); Fb = y(:,6);\n\n    AE_tot_a=Ea+La+Fa;\n    AE_tot_b=Eb+Lb+Fb;\n\n    Ea_frac=Ea./AE_tot_a;\n    La_frac=La./AE_tot_a;\n    Fa_frac=Fa./AE_tot_a;\n    \n    Eb_frac=Eb./AE_tot_b;\n    Lb_frac=Lb./AE_tot_b;\n    Fb_frac=Fb./AE_tot_b;\n\n\n    figure_setups; hold on\n    plot(t,Ea_frac,'r-',t,La_frac,'g--',t, Fa_frac,'b-.')\n    plot(t,Eb_frac,'c-',t,Lb_frac,'m--',t, Fb_frac,'y-.')\n    xlabel('t')\n    % Set Y-axis limits\n    %ylim([0, 0.09]); \n    legend('Ea frac','La frac','Fa frac','Eb','Lb','Fb')\n\n    figure_setups; hold on\n    plot(t(338:400),Ea_frac(338:400),'r-',t(338:400),La_frac(338:400),'g--',t(338:400), Fa_frac(338:400),'b-.')\n    plot(t(338:400),Eb_frac(338:400),'c-',t(338:400),Lb_frac(338:400),'m--',t(338:400), Fb_frac(338:400),'y-.')\n    xlabel('t')\n    % Set Y-axis limits\n    %ylim([0, 0.09]); \n    legend('Ea frac','La frac','Fa frac','Eb','Lb','Fb')\n    \n    % Switch to format long\n    format long;\n    disp(y2(1:10,:))\n    format short;\n\n\n\n     % Interpolate model output to match data times\n    y_interp_aeg = interp1(tspan, y(:,2), data.Days_Passed, 'linear', 'extrap'); \n    y_interp_alb = interp1(tspan, y(:,5), data.Days_Passed, 'linear', 'extrap'); \n\n    % Calculate sum of squared errors\n    err1 = sum((y_interp_aeg - data.Num_aeg).^2);\n    err2 = sum((y_interp_alb - data.Num_alb).^2);\n    %err = [err1; err2];\n    err = err1;\nend", "pythonCode": "from __future__ import annotations\n\nfrom dataclasses import dataclass\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nfrom scipy.io import loadmat\n\nfrom ._utils import safe_fraction\nfrom .figure_setups import setup\nfrom .myODE_ELF import solve_model\nfrom .my_parameters import equilibrium_a\nfrom .paths import FULL_TABLE_MAT\nfrom .time_col_date import build_field_table\n\n\n@dataclass\nclass FieldData:\n    temp_date: np.ndarray\n    days_passed: np.ndarray\n    num_aeg: np.ndarray\n    num_alb: np.ndarray\n\n\ndef _load_table_struct(mat_path):\n    raw = loadmat(mat_path, squeeze_me=True, struct_as_record=False)\n    table_data = raw[\"table_data\"]\n    return table_data\n\n\ndef load_field_data(mat_path=None, rebuild_if_missing=True):\n    mat_path = FULL_TABLE_MAT if mat_path is None else mat_path\n    if rebuild_if_missing and not mat_path.exists():\n        build_field_table(output_path=mat_path)\n\n    table_data = _load_table_struct(mat_path)\n    return FieldData(\n        temp_date=np.atleast_1d(np.asarray(table_data.temp_date)),\n        days_passed=np.atleast_1d(np.asarray(table_data.Days_Passed, dtype=float)),\n        num_aeg=np.atleast_1d(np.asarray(table_data.Num_aeg, dtype=float)),\n        num_alb=np.atleast_1d(np.asarray(table_data.Num_alb, dtype=float)),\n    )\n\n\ndef simulate_segments(p, data):\n    ea0, la0, fa0 = equilibrium_a()\n    y01 = np.array([ea0, la0, fa0, 0.0, 0.0, 0.0], dtype=float)\n\n    tspan1 = np.arange(0.0, 356.0, 1.0)\n    t1, y1 = solve_model(t_eval=tspan1, y0=y01, p=p)\n\n    final_day = max(float(np.ceil(data.days_passed[-1])), 355.0)\n    if final_day <= 355.0:\n        return t1, y1\n\n    tspan2 = np.arange(355.0, final_day + 1.0, 1.0)\n    y02 = np.array([y1[-1, 0], y1[-1, 1], y1[-1, 2], 0.0, 0.0, 1.0], dtype=float)\n    t2, y2 = solve_model(t_eval=tspan2, y0=y02, p=p)\n\n    t = np.concatenate([t1, t2[1:]])\n    y = np.vstack([y1, y2[1:]])\n    return t, y\n\n\ndef _plot_fractions(t, y):\n    ae_tot_a = y[:, 0] + y[:, 1] + y[:, 2]\n    ae_tot_b = y[:, 3] + y[:, 4] + y[:, 5]\n    fractions = np.column_stack(\n        [\n            safe_fraction(y[:, 0], ae_tot_a),\n            safe_fraction(y[:, 1], ae_tot_a),\n            safe_fraction(y[:, 2], ae_tot_a),\n            safe_fraction(y[:, 3], ae_tot_b),\n            safe_fraction(y[:, 4], ae_tot_b),\n            safe_fraction(y[:, 5], ae_tot_b),\n        ]\n    )\n\n    labels = [\"Ea frac\", \"La frac\", \"Fa frac\", \"Eb frac\", \"Lb frac\", \"Fb frac\"]\n    styles = [\"r-\", \"g--\", \"b-.\", \"c-\", \"m--\", \"y-.\"]\n\n    fig, ax = setup()\n    for idx, (label, style) in enumerate(zip(labels, styles)):\n        ax.plot(t, fractions[:, idx], style, label=label)\n    ax.set_xlabel(\"t\")\n    ax.legend()\n    fig.tight_layout()\n\n    fig_zoom, ax_zoom = setup()\n    mask = (t >= 338) & (t <= 400)\n    for idx, (label, style) in enumerate(zip(labels, styles)):\n        ax_zoom.plot(t[mask], fractions[mask, idx], style, label=label)\n    ax_zoom.set_xlabel(\"t\")\n    ax_zoom.legend()\n    fig_zoom.tight_layout()\n\n\ndef error_fun_betas(p, data=None, plot=False, verbose=False, return_details=False):\n    p = np.asarray(p, dtype=float)\n    data = load_field_data() if data is None else data\n    t, y = simulate_segments(p, data)\n\n    y_interp_aeg = np.interp(data.days_passed, t, y[:, 1])\n    y_interp_alb = np.interp(data.days_passed, t, y[:, 4])\n\n    err1 = float(np.square(y_interp_aeg - data.num_aeg).sum())\n    err2 = float(np.square(y_interp_alb - data.num_alb).sum())\n    total_error = err1 + err2\n\n    if verbose:\n        print(f\"betas={p.tolist()} err_aeg={err1:.6f} err_alb={err2:.6f} total={total_error:.6f}\")\n\n    if plot:\n        _plot_fractions(t, y)\n        plt.show()\n\n    if return_details:\n        return {\n            \"error\": total_error,\n            \"err_aeg\": err1,\n            \"err_alb\": err2,\n            \"t\": t,\n            \"y\": y,\n            \"y_interp_aeg\": y_interp_aeg,\n            \"y_interp_alb\": y_interp_alb,\n        }\n\n    return total_error\n"}, {"id": "time_col_date", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "time_col_date.m", "pythonName": "time_col_date.py", "matlabRelPath": "Yang params model/time_col_date.m", "pythonRelPath": "dengue_model/time_col_date.py", "category": "Preparacion de datos", "purpose": "Sirve para preparar los datos de campo. Limpia el CSV, filtra la localidad LITA, agrega por fecha y genera `full_table_Lita.mat`.", "transform": "Se sustituyo `readtable/save` por `pandas` y `savemat`, incorporando limpieza real del CSV del proyecto.", "notes": ["La lectura tabular se migro de `readtable` a `pandas.read_csv`.", "La exportacion de `.mat` se migro a `scipy.io.savemat`."], "detail": {"overview": "Prepara los datos observacionales del proyecto. Limpia el CSV bruto, filtra la localidad correcta, agrega por fecha y genera el `.mat` que usa el ajuste del modelo.", "inputs": ["Ruta al CSV de campo, localidad objetivo y ruta de salida opcionales.", "El archivo bruto localizado en la carpeta de datos del proyecto."], "outputs": ["Tabla agregada por fecha.", "Archivo `full_table_Lita.mat` listo para calibracion."], "dependencies": ["`pandas`", "`savemat`", "`find_field_csv()`", "`ensure_data_dir()`"], "flow": ["Lee el CSV y elimina filas espurias de encabezado.", "Normaliza localidad y columnas numericas.", "Agrupa conteos por fecha y calcula `Days_Passed`.", "Exporta el resultado como `.mat` para el resto del flujo."], "migrationNotes": ["La lectura tabular se migro de `readtable` a `pandas.read_csv`.", "La exportacion de `.mat` se migro a `scipy.io.savemat`."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["initial_guess = [0.5, 0.5]; % Initial guess for betas"]}], "codeExplanation": "El bloque principal ilustra el pipeline de limpieza de datos, que es el puente entre los datos crudos de campo y el formato que espera el modelo.", "pythonSnippet": "def build_field_table(csv_path=None, output_path=None, locality=\"LITA\"):\n    csv_path = Path(csv_path) if csv_path is not None else find_field_csv()\n    output_path = Path(output_path) if output_path is not None else FULL_TABLE_MAT\n\n    table_data = pd.read_csv(csv_path)\n    table_data = table_data[table_data[DATE_COLUMN] != HEADER_CODE].copy()\n    table_data[LOCALITY_COLUMN] = table_data[LOCALITY_COLUMN].astype(str).str.strip()\n    table_data = table_data[table_data[LOCALITY_COLUMN].str.upper() == locality.upper()].copy()\n\n    table_data[\"temp_date\"] = pd.to_datetime(\n        table_data[DATE_COLUMN],\n        format=\"%m/%d/%y\",\n        errors=\"coerce\",\n    )", "matlabSnippet": "clearvars\n% close all\nclc\n\nglobal P\n\nfile_path = '/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/Mosquito counts/full_table_Lita.csv';\n% Read the data from the CSV file\ntable_data = readtable(file_path);\n\n% Convert the 'temp_date' column to datetime format\ntable_data.temp_date = datetime(table_data.temp_date);\n\n% Calculate the number of days that have passed since the first date", "transform": "Se sustituyo `readtable/save` por `pandas` y `savemat`, incorporando limpieza real del CSV del proyecto."}, "matlabLines": 36, "pythonLines": 89, "addedLines": 83, "removedLines": 30, "matlabCode": "clearvars\n% close all\nclc\n\nglobal P\n\nfile_path = '/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/Mosquito counts/full_table_Lita.csv';\n% Read the data from the CSV file\ntable_data = readtable(file_path);\n\n% Convert the 'temp_date' column to datetime format\ntable_data.temp_date = datetime(table_data.temp_date);\n\n% Calculate the number of days that have passed since the first date\ndays_passed = (table_data.temp_date - table_data.temp_date(1))+1;\n\n% Add the 'Days_Passed' column to the table\ntable_data.Days_Passed = days(days_passed);\n\n% Display the updated table\ndisp(table_data);\n\n% Save the table to a MAT-file\nsave('full_table_Lita.mat', 'table_data');\n\n\n%------\n% Initial guess for parameters\ninitial_guess = [0.5, 0.5]; % Initial guess for betas\n    \n% Optimize parameters\nparams = fminsearch(@(p) error_fun_betas(p, data), initial_guess);\n\n% Display estimated parameters\ndisp('Estimated parameters (beta1, beta2):');\ndisp(params);", "pythonCode": "from __future__ import annotations\n\nimport argparse\nfrom pathlib import Path\n\nimport numpy as np\nimport pandas as pd\nfrom scipy.io import savemat\n\nfrom .paths import FULL_TABLE_MAT, ensure_data_dir, find_field_csv\n\n\nDATE_COLUMN = \"Fecha de colecta de ovitrampa\"\nLOCALITY_COLUMN = \"Localidad\"\nAEG_COLUMN = \"Total adultos aedes aegypti\"\nALB_COLUMN = \"Total adultos aedes albopictus\"\nHEADER_CODE = \"d_dte_clc\"\n\n\ndef build_field_table(csv_path=None, output_path=None, locality=\"LITA\"):\n    csv_path = Path(csv_path) if csv_path is not None else find_field_csv()\n    output_path = Path(output_path) if output_path is not None else FULL_TABLE_MAT\n\n    table_data = pd.read_csv(csv_path)\n    table_data = table_data[table_data[DATE_COLUMN] != HEADER_CODE].copy()\n    table_data[LOCALITY_COLUMN] = table_data[LOCALITY_COLUMN].astype(str).str.strip()\n    table_data = table_data[table_data[LOCALITY_COLUMN].str.upper() == locality.upper()].copy()\n\n    table_data[\"temp_date\"] = pd.to_datetime(\n        table_data[DATE_COLUMN],\n        format=\"%m/%d/%y\",\n        errors=\"coerce\",\n    )\n    table_data[\"Num_aeg\"] = pd.to_numeric(table_data[AEG_COLUMN], errors=\"coerce\").fillna(0.0)\n    table_data[\"Num_alb\"] = pd.to_numeric(table_data[ALB_COLUMN], errors=\"coerce\").fillna(0.0)\n    table_data = table_data.dropna(subset=[\"temp_date\"])\n\n    grouped = (\n        table_data.groupby(\"temp_date\", as_index=False)[[\"Num_aeg\", \"Num_alb\"]]\n        .sum()\n        .sort_values(\"temp_date\")\n        .reset_index(drop=True)\n    )\n    if grouped.empty:\n        raise ValueError(\n            f\"No se encontraron filas validas para la localidad {locality!r} en {csv_path}.\"\n        )\n\n    grouped[\"Days_Passed\"] = (grouped[\"temp_date\"] - grouped[\"temp_date\"].iloc[0]).dt.days + 1\n\n    ensure_data_dir()\n    output_path.parent.mkdir(parents=True, exist_ok=True)\n    savemat(\n        output_path,\n        {\n            \"table_data\": {\n                \"temp_date\": grouped[\"temp_date\"].dt.strftime(\"%Y-%m-%d\").to_numpy(dtype=object),\n                \"Days_Passed\": grouped[\"Days_Passed\"].to_numpy(dtype=float),\n                \"Num_aeg\": grouped[\"Num_aeg\"].to_numpy(dtype=float),\n                \"Num_alb\": grouped[\"Num_alb\"].to_numpy(dtype=float),\n            }\n        },\n    )\n\n    return grouped\n\n\ndef main():\n    parser = argparse.ArgumentParser(\n        description=\"Reconstruye full_table_Lita.mat a partir del CSV de campo.\"\n    )\n    parser.add_argument(\"--csv-path\", type=Path, default=None)\n    parser.add_argument(\"--output-path\", type=Path, default=FULL_TABLE_MAT)\n    parser.add_argument(\"--locality\", default=\"LITA\")\n    args = parser.parse_args()\n\n    grouped = build_field_table(\n        csv_path=args.csv_path,\n        output_path=args.output_path,\n        locality=args.locality,\n    )\n    print(\n        f\"Archivo generado: {args.output_path} | filas agregadas: {len(grouped)} | \"\n        f\"rango: {grouped['temp_date'].min().date()} -> {grouped['temp_date'].max().date()}\"\n    )\n\n\nif __name__ == \"__main__\":\n    main()\n"}, {"id": "params_b_fits", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "params_b_fits.m", "pythonName": "params_b_fits.py", "matlabRelPath": "Yang params model/params_b_fits.m", "pythonRelPath": "dengue_model/params_b_fits.py", "category": "Ajustes de literatura", "purpose": "Sirve para recalcular curvas y ajustes auxiliares de albopictus usando los CSVs de literatura incluidos como insumos trazables.", "transform": "Se eliminaron rutas absolutas, se validan entradas requeridas y se dejaron los insumos como archivos trazables en `data/params_literature`.", "notes": ["La lectura tabular se migro de `readtable` a `pandas.read_csv`.", "Los ajustes polinomiales se migraron a NumPy.", "El modulo ahora valida de forma explicita que existan los CSVs de literatura requeridos."], "detail": {"overview": "Recalcula los ajustes auxiliares de literatura para albopictus. Este archivo no ejecuta la simulacion principal; reconstruye curvas polinomiales a partir de CSVs de referencia biologica.", "inputs": ["Directorio con CSVs de literatura.", "Bandera para mostrar o no graficas de verificacion."], "outputs": ["Coeficientes ajustados para mortalidad, desarrollo y fecundidad.", "Graficas diagnosticas opcionales."], "dependencies": ["`pandas`", "`numpy.polyfit`", "`matplotlib`", "`PARAMS_DATA_DIR`"], "flow": ["Valida que existan los CSVs requeridos.", "Ajusta polinomios a cada tabla de literatura.", "Deriva curvas secundarias como `mu_L_b` y `mu_E_b`.", "Devuelve todos los coeficientes en un diccionario reusable."], "migrationNotes": ["La lectura tabular se migro de `readtable` a `pandas.read_csv`.", "Los ajustes polinomiales se migraron a NumPy.", "El modulo ahora valida de forma explicita que existan los CSVs de literatura requeridos."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["development_time_x = np.array([10, 15, 25, 30], dtype=float)", "development_time_y = np.array([2, 4.5, 7.4, 6.7], dtype=float)", "egg_l1_x = np.array([10, 15, 25, 30], dtype=float)"]}, {"level": "warning", "title": "Datos o curvas pegadas en el archivo", "message": "Se detectaron tablas, series o puntos de ajuste embebidos en el codigo. Esto reduce trazabilidad cuando ya no se quiera considerar esos datos o se quiera reemplazarlos por una fuente externa.", "evidence": ["development_time_x = np.array([10, 15, 25, 30], dtype=float)", "development_time_y = np.array([2, 4.5, 7.4, 6.7], dtype=float)", "egg_l1_x = np.array([10, 15, 25, 30], dtype=float)"]}], "codeExplanation": "El archivo muestra como convertir literatura biologica en coeficientes concretos que luego alimentan las funciones del modelo.", "pythonSnippet": "def _require_file(data_dir, filename):\n    path = data_dir / filename\n    if not path.exists():\n        raise FileNotFoundError(\n            f\"Falta {filename} en {data_dir}. Coloca ahi los CSV de literatura para ejecutar params_b_fits.\"\n        )\n    return path\n\n\ndef _fit_table(data_dir, filename, x_column, y_column, degree):\n    table = pd.read_csv(_require_file(data_dir, filename))\n    return np.polyfit(table[x_column], table[y_column], degree), table", "matlabSnippet": "%Parameters for Albopictus: \n%1. Fit parameters to Mordecai values to obtain polynomial coeffs to\n%estimate: mu_F, psi_2_b, \n%mu_F_b\n%Mordecai paper data\n    lifespan_table = readtable(\"/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/params data extraction Mordecai/Albopictus data/Adult_Lifespan_alb.csv\");\n    fit_lifespan = polyfit(lifespan_table.Temperature,lifespan_table.AdultLifespan,5);        \n    % Generate x-values\n    x_values = linspace(13, 33, 40);\n    % Evaluate the polynomial\n    y_values = polyval(fit_lifespan, x_values);\n    % Plot the seventh-degree polynomial\n    figure;\n    plot(x_values, 1./y_values, 'LineWidth', 2);", "transform": "Se eliminaron rutas absolutas, se validan entradas requeridas y se dejaron los insumos como archivos trazables en `data/params_literature`."}, "matlabLines": 168, "pythonLines": 139, "addedLines": 128, "removedLines": 157, "matlabCode": "%Parameters for Albopictus: \n%1. Fit parameters to Mordecai values to obtain polynomial coeffs to\n%estimate: mu_F, psi_2_b, \n%mu_F_b\n%Mordecai paper data\n    lifespan_table = readtable(\"/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/params data extraction Mordecai/Albopictus data/Adult_Lifespan_alb.csv\");\n    fit_lifespan = polyfit(lifespan_table.Temperature,lifespan_table.AdultLifespan,5);        \n    % Generate x-values\n    x_values = linspace(13, 33, 40);\n    % Evaluate the polynomial\n    y_values = polyval(fit_lifespan, x_values);\n    % Plot the seventh-degree polynomial\n    figure;\n    plot(x_values, 1./y_values, 'LineWidth', 2);\n    title('mu_F_b');\n    xlabel('x');\n    ylabel('y');\n    grid on;\n\n    format long;\n\n% Display the coefficients\ndisp(fit_lifespan);\n\n% Reset the display format to the default\nformat short;\n\n\n    %MDR to obtain psi_2_b: \n    dev_table = readtable(\"/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/params data extraction Mordecai/Albopictus data/MDR_alb.csv\");\n    fit_dev = polyfit(dev_table.Temperature,dev_table.MDR,6);\n    % Generate x-values\n    x_values = linspace(10, 40, 40);\n    % Evaluate the polynomial\n    y_values = polyval(fit_dev, x_values);\n    % Plot the seventh-degree polynomial\n    figure;\n    plot(x_values, y_values, 'LineWidth', 2);\n    title('Psi_2_b');\n    xlabel('x');\n    ylabel('y');\n    grid on;\n\n    format long;\n\n% Display the coefficients\ndisp(fit_dev);\n\n% Reset the display format to the default\nformat short;\n\n\n%phi_b    \n    fecundity_table = readtable(\"/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/params data extraction Mordecai/Albopictus data/Fecundity_alb.csv\");\n    biting_rate = readtable(\"/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/params data extraction Mordecai/Albopictus data/Biting_rate.csv\");\n    fit_fecund = polyfit(fecundity_table.Temperature,fecundity_table.eggs_per_female_per_cycle,6);\n    fit_br = polyfit(biting_rate.Temperature,biting_rate.Biting_rate,6);\n    f_prod = @(x) polyval(fit_br,x).*polyval(fit_fecund,x);\n    % Generate x-values\n    x_values = linspace(10, 35, 40);\n    % Evaluate the polynomial\n    y_values = f_prod(x_values);\n    % Plot the seventh-degree polynomial\n    figure;\n    plot(x_values, y_values, 'LineWidth', 2);\n    title('Fecundity per female per day');\n    xlabel('x');\n    ylabel('y');\n    grid on;\n\n% \\mu_L_b\n    eas_table = readtable(\"/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/params data extraction Mordecai/Albopictus data/EAS_alb.csv\");\n    fit_eas = polyfit(eas_table.Temperature,eas_table.EAS,6);\n    x_vals = linspace(10, 40, 30);\n    y_vals = polyval(fit_eas, x_vals);\n    figure;\n    plot(x_vals, y_vals, '-', 'LineWidth', 2);\n    mu_L_b = @(x) polyval(fit_dev, x)./polyval(fit_eas,x)-polyval(fit_dev,x);\n    % Generate x-values\n    x_values = linspace(10, 35, 40);\n    % Evaluate the polynomial\n    y_values = mu_L_b(x_values);\n    % Plot the seventh-degree polynomial\n    figure;\n    plot(x_values, y_values, 'LineWidth', 2);\n    title('mu_L');\n    xlabel('x');\n    ylabel('y');\n    grid on;\n\n\n\n%Marini paper    \n%Psi_1_b\n    x_values = [10, 15, 25, 30];\n    y_values = [2, 4.5, 7.4, 6.7];\n    development_rate = polyfit(x_values, y_values, 3);\n    x_vals = linspace(10, 35, 20);\n    y_vals = polyval(development_rate, x_vals);\n    figure;\n    plot(x_values, y_values, 'o', x_vals, y_vals, '-', 'LineWidth', 2);\n\n    plot(x_vals, 1./y_vals, '-', 'LineWidth', 2);\n    title('Psi_1_b');\n\n% \\mu_E_b\n    x_values = [10, 15, 25, 30];\n    y_values = [0.04, 0.08, 0.49, 0.51];\n    Egg_L1 = polyfit(x_values, y_values, 3);\n    x_vals = linspace(10, 30, 20);\n    y_vals = polyval(Egg_L1, x_vals);\n    figure;\n    plot(x_values, y_values, 'o', x_vals, y_vals, '-', 'LineWidth', 2);\n    %Egg_L1 = psi_1/(psi_1+mu_E), mu_E=\\psi_1/EL1-psi_1\n    mu_E_b = @(x) ((1./polyval(survival_rate, x))./polyval(Egg_L1,x))-(1./polyval(survival_rate,x));\n    % Generate x-values\n    x_values = linspace(10, 35, 40);\n    % Evaluate the polynomial\n    y_values = mu_E_b(x_values);\n    % Plot the seventh-degree polynomial\n    figure;\n    plot(x_values, y_values, 'LineWidth', 2);\n    title('mu_E');\n    xlabel('x');\n    ylabel('y');\n    grid on;\n\n    figure;\n    plot(x_values, 1./y_values, 'LineWidth', 2);\n    title('1/mu_E');\n    xlabel('x');\n    ylabel('y');\n    grid on;\n\n%%%%%%%%%%\n\n    fecundity_table = readtable(\"/Users/joanponce/Library/CloudStorage/Dropbox/Spatial Mosquito project/Data/params data extraction Mordecai/Albopictus data/Fecundity_alb.csv\");\n\n    fit_fecund = polyfit(fecundity_table.Temperature,fecundity_table.eggs_per_female_per_cycle,6);\n% Generate x-values\n    x_values = linspace(10, 35, 40);\n    % Evaluate the polynomial\n    y_values = polyval(fit_fecund, x_values);\n    % Plot the seventh-degree polynomial\n    figure;\n    plot(x_values, y_values, 'LineWidth', 2);\n    title('Fecundity');\n    xlabel('x');\n    ylabel('y');\n    grid on;\n\n%to get fecundity extract biting rate\n    bit_rate = fit_dev;\n    f_prod = @(x) polyval(fit_dev,x).*polyval(fit_fecund,x);\n\n    % Generate x-values\n    x_values = linspace(10, 35, 40);\n    % Evaluate the polynomial\n    y_values = f_prod(x_values);\n    % Plot the seventh-degree polynomial\n    figure;\n    plot(x_values, y_values, 'LineWidth', 2);\n    title('Fecundity per female per day');\n    xlabel('x');\n    ylabel('y');\n    grid on;\n\n\n", "pythonCode": "from __future__ import annotations\n\nimport argparse\nfrom pathlib import Path\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport pandas as pd\n\nfrom .paths import PARAMS_DATA_DIR\n\n\nEXPECTED_FILES = {\n    \"Adult_Lifespan_alb.csv\": (\"Temperature\", \"AdultLifespan\"),\n    \"MDR_alb.csv\": (\"Temperature\", \"MDR\"),\n    \"Fecundity_alb.csv\": (\"Temperature\", \"eggs_per_female_per_cycle\"),\n    \"Biting_rate.csv\": (\"Temperature\", \"Biting_rate\"),\n    \"EAS_alb.csv\": (\"Temperature\", \"EAS\"),\n}\n\n\ndef _require_file(data_dir, filename):\n    path = data_dir / filename\n    if not path.exists():\n        raise FileNotFoundError(\n            f\"Falta {filename} en {data_dir}. Coloca ahi los CSV de literatura para ejecutar params_b_fits.\"\n        )\n    return path\n\n\ndef _fit_table(data_dir, filename, x_column, y_column, degree):\n    table = pd.read_csv(_require_file(data_dir, filename))\n    return np.polyfit(table[x_column], table[y_column], degree), table\n\n\ndef _validate_required_files(data_dir):\n    missing = sorted(filename for filename in EXPECTED_FILES if not (data_dir / filename).exists())\n    if missing:\n        missing_lines = \"\\n\".join(f\"- {filename}\" for filename in missing)\n        raise FileNotFoundError(\n            \"Faltan CSVs de literatura requeridos para ejecutar params_b_fits en \"\n            f\"{data_dir}:\\n{missing_lines}\"\n        )\n\n\ndef fit_params(data_dir=None, plot=True):\n    data_dir = PARAMS_DATA_DIR if data_dir is None else Path(data_dir)\n    _validate_required_files(data_dir)\n\n    fit_lifespan, lifespan_table = _fit_table(\n        data_dir, \"Adult_Lifespan_alb.csv\", \"Temperature\", \"AdultLifespan\", 5\n    )\n    fit_dev, dev_table = _fit_table(data_dir, \"MDR_alb.csv\", \"Temperature\", \"MDR\", 6)\n    fit_fecund, fecundity_table = _fit_table(\n        data_dir, \"Fecundity_alb.csv\", \"Temperature\", \"eggs_per_female_per_cycle\", 6\n    )\n    fit_br, biting_rate = _fit_table(data_dir, \"Biting_rate.csv\", \"Temperature\", \"Biting_rate\", 6)\n    fit_eas, eas_table = _fit_table(data_dir, \"EAS_alb.csv\", \"Temperature\", \"EAS\", 6)\n\n    x_values = np.linspace(10, 35, 40)\n    mu_l_b = np.polyval(fit_dev, x_values) / np.polyval(fit_eas, x_values) - np.polyval(\n        fit_dev, x_values\n    )\n\n    development_time_x = np.array([10, 15, 25, 30], dtype=float)\n    development_time_y = np.array([2, 4.5, 7.4, 6.7], dtype=float)\n    development_time = np.polyfit(development_time_x, development_time_y, 3)\n\n    egg_l1_x = np.array([10, 15, 25, 30], dtype=float)\n    egg_l1_y = np.array([0.04, 0.08, 0.49, 0.51], dtype=float)\n    egg_l1 = np.polyfit(egg_l1_x, egg_l1_y, 3)\n    psi_1_b = 1.0 / np.polyval(development_time, x_values)\n    mu_e_b = psi_1_b / np.polyval(egg_l1, x_values) - psi_1_b\n\n    if plot:\n        fig, axes = plt.subplots(2, 3, figsize=(15, 9))\n        axes = axes.ravel()\n\n        axes[0].plot(lifespan_table[\"Temperature\"], 1.0 / lifespan_table[\"AdultLifespan\"], \"o\")\n        axes[0].plot(x_values, 1.0 / np.polyval(fit_lifespan, x_values), \"-\")\n        axes[0].set_title(\"mu_F_b\")\n\n        axes[1].plot(dev_table[\"Temperature\"], dev_table[\"MDR\"], \"o\")\n        axes[1].plot(x_values, np.polyval(fit_dev, x_values), \"-\")\n        axes[1].set_title(\"psi_2_b\")\n\n        axes[2].plot(eas_table[\"Temperature\"], eas_table[\"EAS\"], \"o\")\n        axes[2].plot(x_values, mu_l_b, \"-\")\n        axes[2].set_title(\"mu_L_b\")\n\n        axes[3].plot(fecundity_table[\"Temperature\"], fecundity_table[\"eggs_per_female_per_cycle\"], \"o\")\n        axes[3].plot(x_values, np.polyval(fit_fecund, x_values), \"-\")\n        axes[3].set_title(\"fecundity\")\n\n        axes[4].plot(biting_rate[\"Temperature\"], biting_rate[\"Biting_rate\"], \"o\")\n        axes[4].plot(x_values, np.polyval(fit_br, x_values), \"-\")\n        axes[4].set_title(\"biting_rate\")\n\n        axes[5].plot(x_values, mu_e_b, \"-\")\n        axes[5].set_title(\"mu_E_b\")\n\n        for ax in axes:\n            ax.grid(True)\n        fig.tight_layout()\n\n    return {\n        \"mu_F_b\": fit_lifespan,\n        \"psi_2_b\": fit_dev,\n        \"phi_B_fecundity\": fit_fecund,\n        \"phi_B_biting_rate\": fit_br,\n        \"mu_L_b_eas\": fit_eas,\n        \"psi_1_b_development_time\": development_time,\n        \"mu_E_b_egg_l1\": egg_l1,\n    }\n\n\ndef main():\n    parser = argparse.ArgumentParser(\n        description=\"Recalcula ajustes polinomiales auxiliares para albopictus.\"\n    )\n    parser.add_argument(\"--data-dir\", type=Path, default=PARAMS_DATA_DIR)\n    parser.add_argument(\"--no-plot\", action=\"store_true\")\n    args = parser.parse_args()\n\n    try:\n        fits = fit_params(data_dir=args.data_dir, plot=not args.no_plot)\n    except FileNotFoundError as exc:\n        print(exc)\n        return\n\n    for name, coeffs in fits.items():\n        print(f\"{name}: {coeffs}\")\n\n    if not args.no_plot:\n        plt.show()\n\n\nif __name__ == \"__main__\":\n    main()\n"}, {"id": "figure_setups", "kind": "paired", "statusLabel": "Migrado 1:1", "matlabName": "figure_setups.m", "pythonName": "figure_setups.py", "matlabRelPath": "Yang params model/figure_setups.m", "pythonRelPath": "dengue_model/figure_setups.py", "category": "Visualizacion", "purpose": "Sirve para definir el estilo base de las graficas del proyecto. No cambia el modelo, solo la forma en que se visualizan los resultados.", "transform": "Paso de defaults globales de MATLAB a una funcion `setup()` con `matplotlib` y estilo reutilizable.", "notes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "detail": {"overview": "Es un utilitario de visualizacion. Define configuracion comun de graficas para que todas las figuras del proyecto tengan un estilo consistente.", "inputs": ["Tamano de figura opcional."], "outputs": ["Objeto `fig, ax` de matplotlib ya configurado."], "dependencies": ["`matplotlib.pyplot`"], "flow": ["Actualiza `rcParams` globales relevantes.", "Crea una figura y eje base.", "Activa grilla y devuelve ambos objetos listos para graficar."], "migrationNotes": ["Se mantiene una correspondencia funcional 1:1 con adaptaciones de sintaxis, imports y estructura de paquete."], "alerts": [{"level": "warning", "title": "Parametros o coeficientes hardcodeados", "message": "El archivo contiene constantes numericas incrustadas directamente en el codigo. Si cambia la calibracion o la fuente cientifica, este archivo requerira edicion manual.", "evidence": ["colour_r1 = [1, 0.6, 0.6]; % 80% red [255, 153, 153]", "colour_r2 = [1, 0.4, 0.4]; % 70% red [255, 102, 102]", "colour_r3 = [1, 0, 0]; % 50% red  red [255, 0, 0]"]}], "codeExplanation": "Aunque es pequeno, este archivo separa la logica de visualizacion del resto del modelo y evita repetir configuraciones de estilo.", "pythonSnippet": "def setup(figsize=(9, 7)):\n    plt.rcParams.update(\n        {\n            \"lines.linewidth\": 3,\n            \"font.size\": 14,\n            \"axes.titlesize\": 14,\n            \"axes.labelsize\": 14,\n            \"legend.fontsize\": 12,\n            \"lines.markersize\": 8,\n        }\n    )\n    fig, ax = plt.subplots(figsize=figsize)\n    ax.grid(True)\n    return fig, ax", "matlabSnippet": "function fig = figure_setups()\n% 08/31/20018 Zhuolin Qu\n\n% Home PC single screen -- wide\n% fig = figure('Position', [100, 55,1100, 600]);\n% fig = figure('Position', [20, 55,1900, 500]);\n% fig = figure('Position', [100, 55,1800, 900]);\n\n% % Home PC single screen -- regular\nfig = figure('Position', [100, 25,900, 700]);\n% fig = figure('Position', [100, 45,900, 600]);\n% Home PC single screen -- rectangle\n% fig = figure('Position', [100, 55,700, 700]);", "transform": "Paso de defaults globales de MATLAB a una funcion `setup()` con `matplotlib` y estilo reutilizable."}, "matlabLines": 63, "pythonLines": 19, "addedLines": 16, "removedLines": 60, "matlabCode": "function fig = figure_setups()\n% 08/31/20018 Zhuolin Qu\n\n% Home PC single screen -- wide\n% fig = figure('Position', [100, 55,1100, 600]);\n% fig = figure('Position', [20, 55,1900, 500]);\n% fig = figure('Position', [100, 55,1800, 900]);\n\n% % Home PC single screen -- regular\nfig = figure('Position', [100, 25,900, 700]);\n% fig = figure('Position', [100, 45,900, 600]);\n% Home PC single screen -- rectangle\n% fig = figure('Position', [100, 55,700, 700]);\n\nglobal skip_pt\nglobal colour_r1 colour_r2 colour_r3 colour_r4\nglobal colour_blue colour_red colour_yellow\nglobal colour_mat1 colour_mat2 colour_mat3 colour_mat4 colour_mat5 colour_mat6 colour_mat7\n\n% ColorSet = varycolor(20);\n% for Home PC\nset(0,'defaultLineLineWidth',3,'defaultTextFontSize',30,'defaultTextFontname','CMU Serif Italic','defaultAxesFontSize',30,'defaultLineMarkerSize',8)\nset(0,'defaultLegendFontSize',30,'defaultLegendLineWidth',3)\n\n% for CCS imac screen\n% set(0,'defaultLineLineWidth',0.5,'defaultTextFontSize',25,'defaultTextFontname','CMU Serif Italic','defaultAxesFontSize',25,'defaultLineMarkerSize',13)\n\nset(0,'defaultAxesLineStyleOrder',{'-','--',':'}) %or whatever you want\nset(0,'defaultAxesColorOrder',lines(5))\nset(0,'defaultLegendInterpreter','latex');\nset(0,'defaultAxesTickLabelInterpreter','latex')\nset(0,'defaulttextinterpreter','latex');  \nset(0,'defaultLegendAutoUpdate','on');\n\ngrid on\n% grid minor\n\nbox on\n\nskip_pt = 1; % for sparser plotting\n\ncolour_r1 = [1, 0.6, 0.6]; % 80% red [255, 153, 153]\ncolour_r2 = [1, 0.4, 0.4]; % 70% red [255, 102, 102]\ncolour_r3 = [1, 0, 0]; % 50% red  red [255, 0, 0]\ncolour_r4 = [0.8, 0, 0]; % 40% red  red [204, 0, 0]\n\ncolour_blue = [0, 0.4470, 0.7410];\ncolour_red = [0.8500, 0.3250, 0.0980];\ncolour_yellow = [0.9290, 0.6940, 0.1250];\n\ncolour_mat1 = [0 0.4470 0.7410];\ncolour_mat2 = [0.8500 0.3250 0.0980];\ncolour_mat3 = [0.9290 0.6940 0.1250];\ncolour_mat4 = [0.4940 0.1840 0.5560];\ncolour_mat5 = [0.4660 0.6740 0.1880];\ncolour_mat6 = [0.3010 0.7450 0.9330];\ncolour_mat7 = [0.6350 0.0780 0.1840];\n\nend\n\n\n\n\n", "pythonCode": "from __future__ import annotations\n\nimport matplotlib.pyplot as plt\n\n\ndef setup(figsize=(9, 7)):\n    plt.rcParams.update(\n        {\n            \"lines.linewidth\": 3,\n            \"font.size\": 14,\n            \"axes.titlesize\": 14,\n            \"axes.labelsize\": 14,\n            \"legend.fontsize\": 12,\n            \"lines.markersize\": 8,\n        }\n    )\n    fig, ax = plt.subplots(figsize=figsize)\n    ax.grid(True)\n    return fig, ax\n"}, {"id": "__init__", "kind": "python-only", "statusLabel": "Nuevo en Python", "matlabName": "No existe", "pythonName": "__init__.py", "matlabRelPath": null, "pythonRelPath": "dengue_model/__init__.py", "category": "Soporte Python", "purpose": "Sirve para exponer la API principal del paquete `dengue_model` y facilitar las importaciones desde un solo punto.", "transform": "Es un modulo nuevo de Python que no existia en MATLAB y organiza las exportaciones del paquete.", "notes": ["Modulo agregado en Python como soporte de paquete o infraestructura reutilizable."], "detail": {"overview": "Este archivo organiza la API publica del paquete. Permite importar funciones principales desde `dengue_model` sin exponer toda la estructura interna.", "inputs": ["El nombre del simbolo solicitado al paquete."], "outputs": ["La funcion o variable exportada correspondiente."], "dependencies": ["`__getattr__` perezoso", "modulos `ELF`, `error_fun_betas` y `my_parameters`"], "flow": ["Declara los nombres exportables del paquete.", "Resuelve importaciones de forma perezosa cuando se solicitan.", "Evita advertencias y sobrecarga innecesaria al importar el paquete completo."], "migrationNotes": ["Modulo agregado en Python como soporte de paquete o infraestructura reutilizable."], "alerts": [], "codeExplanation": "La idea central es que el paquete no importe todo de una vez, sino solo cuando alguien realmente necesita un simbolo.", "pythonSnippet": "def __getattr__(name):\n    if name == \"run_elf\":\n        from .ELF import run_elf\n\n        return run_elf\n    if name == \"error_fun_betas\":\n        from .error_fun_betas import error_fun_betas\n\n        return error_fun_betas\n    if name in {\"DEFAULT_COMPETITION\", \"P\", \"initial_state\"}:\n        from .my_parameters import DEFAULT_COMPETITION, P, initial_state\n\n        exports = {\n            \"DEFAULT_COMPETITION\": DEFAULT_COMPETITION,", "matlabSnippet": "", "transform": "Es un modulo nuevo de Python que no existia en MATLAB y organiza las exportaciones del paquete."}, "matlabLines": 0, "pythonLines": 28, "addedLines": 28, "removedLines": 0, "matlabCode": "", "pythonCode": "__all__ = [\n    \"DEFAULT_COMPETITION\",\n    \"P\",\n    \"error_fun_betas\",\n    \"initial_state\",\n    \"run_elf\",\n]\n\n\ndef __getattr__(name):\n    if name == \"run_elf\":\n        from .ELF import run_elf\n\n        return run_elf\n    if name == \"error_fun_betas\":\n        from .error_fun_betas import error_fun_betas\n\n        return error_fun_betas\n    if name in {\"DEFAULT_COMPETITION\", \"P\", \"initial_state\"}:\n        from .my_parameters import DEFAULT_COMPETITION, P, initial_state\n\n        exports = {\n            \"DEFAULT_COMPETITION\": DEFAULT_COMPETITION,\n            \"P\": P,\n            \"initial_state\": initial_state,\n        }\n        return exports[name]\n    raise AttributeError(f\"module {__name__!r} has no attribute {name!r}\")\n"}, {"id": "_utils", "kind": "python-only", "statusLabel": "Nuevo en Python", "matlabName": "No existe", "pythonName": "_utils.py", "matlabRelPath": null, "pythonRelPath": "dengue_model/_utils.py", "category": "Soporte Python", "purpose": "Sirve para reunir utilidades numericas compartidas, como divisiones seguras y compatibilidad entre escalares y vectores.", "transform": "Es un modulo nuevo creado para evitar repeticion y encapsular operaciones auxiliares.", "notes": ["Modulo agregado en Python como soporte de paquete o infraestructura reutilizable."], "detail": {"overview": "Agrupa utilidades numericas pequenas pero importantes. Su objetivo es evitar repetir codigo auxiliar en muchos modulos biologicos.", "inputs": ["Plantillas de entrada y arreglos numericos."], "outputs": ["Resultados numericos con formato consistente y divisiones seguras."], "dependencies": ["`numpy`"], "flow": ["Ajusta salidas para que respeten si la entrada era escalar o vector.", "Protege divisiones contra denominadores cero.", "Sirve como soporte invisible para modulos `phi`, `psi` y `mu`."], "migrationNotes": ["Modulo agregado en Python como soporte de paquete o infraestructura reutilizable."], "alerts": [], "codeExplanation": "Aunque no representa biologia directamente, este archivo cuida la robustez numerica del paquete entero.", "pythonSnippet": "def return_like_input(template, values):\n    array = np.asarray(values, dtype=float)\n    if np.asarray(template).ndim == 0:\n        return float(array)\n    return array\n\n\ndef safe_fraction(numerator, denominator):\n    num = np.asarray(numerator, dtype=float)\n    den = np.asarray(denominator, dtype=float)\n    result = np.divide(\n        num,\n        den,\n        out=np.zeros_like(num, dtype=float),", "matlabSnippet": "", "transform": "Es un modulo nuevo creado para evitar repeticion y encapsular operaciones auxiliares."}, "matlabLines": 0, "pythonLines": 22, "addedLines": 22, "removedLines": 0, "matlabCode": "", "pythonCode": "from __future__ import annotations\n\nimport numpy as np\n\n\ndef return_like_input(template, values):\n    array = np.asarray(values, dtype=float)\n    if np.asarray(template).ndim == 0:\n        return float(array)\n    return array\n\n\ndef safe_fraction(numerator, denominator):\n    num = np.asarray(numerator, dtype=float)\n    den = np.asarray(denominator, dtype=float)\n    result = np.divide(\n        num,\n        den,\n        out=np.zeros_like(num, dtype=float),\n        where=den != 0,\n    )\n    return return_like_input(num, result)\n"}, {"id": "paths", "kind": "python-only", "statusLabel": "Nuevo en Python", "matlabName": "No existe", "pythonName": "paths.py", "matlabRelPath": null, "pythonRelPath": "dengue_model/paths.py", "category": "Soporte Python", "purpose": "Sirve para centralizar las rutas del paquete y de los datos, evitando rutas absolutas dispersas.", "transform": "Es un modulo nuevo que reemplaza rutas dispersas y hardcodeadas por resolucion consistente con `pathlib`.", "notes": ["Modulo agregado en Python como soporte de paquete o infraestructura reutilizable."], "detail": {"overview": "Centraliza todas las rutas relevantes del proyecto. Evita que los modulos usen rutas absolutas o duplicadas en distintos lugares.", "inputs": ["No recibe entradas al importarse; usa la ubicacion del paquete como referencia."], "outputs": ["Constantes de ruta y funciones para localizar datos del proyecto."], "dependencies": ["`pathlib.Path`"], "flow": ["Define la estructura de carpetas relativa al paquete.", "Expone rutas a datos de campo y literatura.", "Incluye funciones auxiliares para localizar archivos esperados."], "migrationNotes": ["Modulo agregado en Python como soporte de paquete o infraestructura reutilizable."], "alerts": [], "codeExplanation": "Su funcion principal es convertir la estructura de carpetas en una capa reutilizable para que el resto del codigo sea portable.", "pythonSnippet": "def ensure_data_dir() -> Path:\n    DATA_DIR.mkdir(parents=True, exist_ok=True)\n    return DATA_DIR\n\n\ndef find_field_csv() -> Path:\n    for candidate in _RAW_FIELD_CSV_CANDIDATES:\n        if candidate.exists():\n            return candidate\n\n    for candidate in REPO_ROOT.rglob(\"*.csv\"):\n        if \"Field\" in candidate.name and \"INSPI_CZ9\" in candidate.name:\n            return candidate", "matlabSnippet": "", "transform": "Es un modulo nuevo que reemplaza rutas dispersas y hardcodeadas por resolucion consistente con `pathlib`."}, "matlabLines": 0, "pythonLines": 38, "addedLines": 38, "removedLines": 0, "matlabCode": "", "pythonCode": "from __future__ import annotations\n\nfrom pathlib import Path\n\n\nPACKAGE_DIR = Path(__file__).resolve().parent\nMODEL_ROOT = PACKAGE_DIR.parent\nREPO_ROOT = MODEL_ROOT.parent\nDATA_DIR = MODEL_ROOT / \"data\"\nPARAMS_DATA_DIR = DATA_DIR / \"params_literature\"\nFULL_TABLE_MAT = DATA_DIR / \"full_table_Lita.mat\"\n\n_RAW_FIELD_CSV_CANDIDATES = [\n    REPO_ROOT\n    / \"Data Mosquitoes\"\n    / \"Data Mosquitoes\"\n    / \"Scripts\"\n    / \"INSPI_CZ9_GIDi_SIT_RLA5074_Field_2018-2019-2020-2021_20230503_DC_CM_FM_XAG.csv\"\n]\n\n\ndef ensure_data_dir() -> Path:\n    DATA_DIR.mkdir(parents=True, exist_ok=True)\n    return DATA_DIR\n\n\ndef find_field_csv() -> Path:\n    for candidate in _RAW_FIELD_CSV_CANDIDATES:\n        if candidate.exists():\n            return candidate\n\n    for candidate in REPO_ROOT.rglob(\"*.csv\"):\n        if \"Field\" in candidate.name and \"INSPI_CZ9\" in candidate.name:\n            return candidate\n\n    raise FileNotFoundError(\n        \"No se encontro el CSV de campo esperado para reconstruir full_table_Lita.\"\n    )\n"}]}</script>
+    <script>
+        function appendDebugLine(message, data) {
+            const panel = document.getElementById("debug-panel");
+            if (!panel) return;
+            panel.classList.remove("hidden");
+            const line = document.createElement("div");
+            line.className = "debug-line mono";
+            const suffix = data ? ` :: ${JSON.stringify(data)}` : "";
+            line.textContent = `${new Date().toLocaleTimeString()} | ${message}${suffix}`;
+            panel.appendChild(line);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            appendDebugLine("DOMContentLoaded");
+        });
+
+        window.addEventListener("load", () => {
+            appendDebugLine("window.load");
+        });
+
+        const rawAuditData = document.getElementById("audit-data").textContent;
+        appendDebugLine("audit-data leido", { length: rawAuditData.length });
+        // #region agent log
+        fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H1',location:'generate_migration_audit.py:1356',message:'audit-data recibido',data:{length:rawAuditData.length,startsWith:rawAuditData.slice(0,80)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        let audit;
+        try {
+            audit = JSON.parse(rawAuditData);
+            appendDebugLine("JSON.parse correcto", { entryCount: audit?.entries?.length ?? null });
+            // #region agent log
+            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H1',location:'generate_migration_audit.py:1361',message:'JSON parse correcto',data:{entryCount:audit?.entries?.length ?? null,summaryKeys:Object.keys(audit?.summary || {})},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+        } catch (error) {
+            appendDebugLine("JSON.parse fallo", { name: error?.name, message: error?.message });
+            // #region agent log
+            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H1',location:'generate_migration_audit.py:1365',message:'Fallo JSON.parse',data:{name:error?.name,message:error?.message},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            throw error;
+        }
+        const summary = audit.summary;
+        const allEntries = audit.entries;
+        let activeTab = "resumen";
+        let currentEntryId = allEntries[0]?.id || null;
+        let currentFilter = "all";
+        let currentSearch = "";
+
+        function switchTab(tab) {
+            activeTab = tab;
+            document.getElementById("view-resumen").classList.toggle("hidden", tab !== "resumen");
+            document.getElementById("view-diff").classList.toggle("hidden", tab !== "diff");
+            document.getElementById("tab-resumen").className = tab === "resumen"
+                ? "tab-active py-3 flex items-center gap-2"
+                : "tab-inactive py-3 flex items-center gap-2";
+            document.getElementById("tab-diff").className = tab === "diff"
+                ? "tab-active py-3 flex items-center gap-2"
+                : "tab-inactive py-3 flex items-center gap-2";
+            if (tab === "diff") {
+                renderDiff(currentEntryId);
+            }
+        }
+
+        function initHeader() {
+            document.getElementById("generated-at").textContent = summary.generatedAt;
+            document.getElementById("regen-command").textContent = summary.regenerateCommand;
+        }
+
+        function renderSummary() {
+            const cards = [
+                ["Archivos MATLAB", summary.matlabCount, "file-code-2", "text-red-600 bg-red-50"],
+                ["Modulos Python", summary.pythonCount, "file-json-2", "text-blue-600 bg-blue-50"],
+                ["Pares 1:1", summary.pairedCount, "git-branch-plus", "text-emerald-600 bg-emerald-50"],
+                ["Modulos nuevos Python", summary.pythonOnlyCount, "package-plus", "text-amber-600 bg-amber-50"],
+                ["Cobertura", summary.coveragePercent + "%", "badge-check", "text-teal-700 bg-teal-50"],
+            ];
+
+            document.getElementById("summary-cards").innerHTML = cards.map(([label, value, icon, styles]) => `
+                <article class="summary-card glass-panel border border-white/80 rounded-[24px] p-5 shadow-lg">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <div class="text-xs uppercase tracking-[0.18em] text-slate-500">${label}</div>
+                            <div class="text-3xl font-bold text-slate-900 mt-3">${value}</div>
+                            <div class="text-sm text-slate-500 mt-2">Estado actual leido desde los archivos conectados al reporte.</div>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center ${styles}">
+                            <i data-lucide="${icon}" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                </article>
+            `).join("");
+
+            document.getElementById("methodology-text").textContent = summary.methodology;
+            document.getElementById("quick-facts").innerHTML = [
+                `El reporte compara ${summary.pairedCount} pares reales MATLAB/Python usando el contenido actual del disco.`,
+                `Hay ${summary.pythonOnlyCount} modulos nuevos de soporte en Python que no existian como archivo MATLAB.`,
+                `El total agregado por la migracion auditada es de ${summary.totalAddedLines} lineas y el total removido es de ${summary.totalRemovedLines}.`,
+                summary.mostChangedStem ? `El archivo con mayor volumen de cambios es ${summary.mostChangedStem}.` : "No se detectaron cambios significativos."
+            ].map(text => `
+                <li class="rounded-2xl border border-slate-200 bg-white px-4 py-3 leading-6 shadow-sm">
+                    ${escapeHtml(text)}
+                </li>
+            `).join("");
+        }
+
+        function kindBadge(kind) {
+            if (kind === "paired") return "kind-paired";
+            if (kind === "python-only") return "kind-python-only";
+            return "kind-matlab-only";
+        }
+
+        function renderTransformationTable() {
+            const tbody = document.getElementById("transformation-table");
+            appendDebugLine("renderTransformationTable", { entryCount: allEntries.length, firstEntryId: allEntries[0]?.id ?? null });
+            // #region agent log
+            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H3',location:'generate_migration_audit.py:1430',message:'Entrando a renderTransformationTable',data:{entryCount:allEntries.length,firstEntryId:allEntries[0]?.id ?? null,hasAlerts:Array.isArray(allEntries[0]?.detail?.alerts)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            tbody.innerHTML = allEntries.map(entry => `
+                <tr class="hover:bg-slate-50/70">
+                    <td class="px-3 py-3">
+                        <div class="mono text-sm text-rose-700 font-medium">${escapeHtml(entry.matlabName)}</div>
+                        <div class="text-xs text-slate-500 mt-1">${escapeHtml(entry.matlabRelPath || "Sin archivo MATLAB asociado")}</div>
+                    </td>
+                    <td class="px-3 py-3">
+                        <div class="mono text-sm text-emerald-700 font-medium">${escapeHtml(entry.pythonName)}</div>
+                        <div class="text-xs text-slate-500 mt-1">${escapeHtml(entry.pythonRelPath || "Sin archivo Python asociado")}</div>
+                    </td>
+                    <td class="px-3 py-3">
+                        <span class="inline-flex px-2.5 py-1 rounded-full border text-[11px] font-semibold whitespace-nowrap ${kindBadge(entry.kind)}">
+                            ${escapeHtml(entry.statusLabel)}
+                        </span>
+                    </td>
+                    <td class="px-3 py-3 text-slate-700 min-w-[130px]">${escapeHtml(entry.category)}</td>
+                    <td class="px-3 py-3 text-slate-700 leading-6 min-w-[250px] max-w-[320px]">${escapeHtml(entry.purpose)}</td>
+                    <td class="px-3 py-3 text-slate-600 leading-6 min-w-[250px] max-w-[320px]">${escapeHtml(entry.transform)}</td>
+                    <td class="px-3 py-3 min-w-[220px] w-[220px]">
+                        <div class="flex flex-col gap-2">
+                            ${entry.detail.alerts.length ? `
+                                <div class="alert-chip w-full">
+                                    <i data-lucide="triangle-alert" class="w-3.5 h-3.5"></i>
+                                    ${entry.detail.alerts.length} alerta${entry.detail.alerts.length === 1 ? "" : "s"}
+                                </div>
+                            ` : ""}
+                            <button class="inline-flex items-center justify-center gap-2 text-sm px-3 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-500 whitespace-nowrap w-full" onclick="openInspector('${entry.id}')">
+                                <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                                Abrir diff
+                            </button>
+                            <button class="inline-flex items-center justify-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 whitespace-nowrap w-full" onclick="openDetailModal('${entry.id}')">
+                                <i data-lucide="book-open-text" class="w-4 h-4"></i>
+                                Conocer más
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join("");
+            lucide.createIcons();
+        }
+
+        function renderList(items, elementId) {
+            document.getElementById(elementId).innerHTML = items
+                .map(item => `<li>${escapeHtml(item)}</li>`)
+                .join("");
+        }
+
+        function renderAlerts(alerts, elementId) {
+            const container = document.getElementById(elementId);
+            if (!alerts.length) {
+                container.innerHTML = `
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                        No se detectaron parametros pegados, curvas embebidas ni umbrales fijos con las reglas actuales de la auditoria.
+                    </div>
+                `;
+                return;
+            }
+            container.innerHTML = alerts.map(alert => `
+                <article class="alert-card ${alert.level === "info" ? "alert-card-info" : ""}">
+                    <div class="flex items-center gap-2">
+                        <span class="alert-chip">
+                            <i data-lucide="${alert.level === "info" ? "info" : "triangle-alert"}" class="w-3.5 h-3.5"></i>
+                            ${alert.level === "info" ? "Revision" : "Alerta"}
+                        </span>
+                        <h4 class="text-sm font-semibold text-slate-900">${escapeHtml(alert.title)}</h4>
+                    </div>
+                    <p class="mt-3 text-sm text-slate-700 leading-6">${escapeHtml(alert.message)}</p>
+                    ${alert.evidence.length ? `
+                        <div class="mt-3">
+                            <div class="text-[11px] uppercase tracking-[0.16em] text-slate-500 mb-2">Evidencia encontrada</div>
+                            <pre class="alert-evidence mono">${escapeHtml(alert.evidence.join("\n"))}</pre>
+                        </div>
+                    ` : ""}
+                </article>
+            `).join("");
+        }
+
+        function openDetailModal(id) {
+            const entry = allEntries.find(item => item.id === id);
+            if (!entry) return;
+
+            document.getElementById("modal-status").textContent = entry.statusLabel;
+            document.getElementById("modal-status").className = `pill-badge ${kindBadge(entry.kind)}`;
+            document.getElementById("modal-category").textContent = entry.category;
+            document.getElementById("modal-title").textContent = `${entry.matlabName} → ${entry.pythonName}`;
+            document.getElementById("modal-overview").textContent = entry.detail.overview;
+            renderList(entry.detail.inputs, "modal-inputs");
+            renderList(entry.detail.outputs, "modal-outputs");
+            renderList(entry.detail.dependencies, "modal-dependencies");
+            renderList(entry.detail.flow, "modal-flow");
+            renderList(entry.detail.migrationNotes, "modal-migration-notes");
+            renderAlerts(entry.detail.alerts || [], "modal-alerts");
+            document.getElementById("modal-code-explanation").textContent = entry.detail.codeExplanation;
+            document.getElementById("modal-python-label").textContent = entry.pythonRelPath || "Sin archivo Python";
+            document.getElementById("modal-matlab-label").textContent = entry.matlabRelPath || "Sin archivo MATLAB";
+            document.getElementById("modal-python-code").textContent = entry.detail.pythonSnippet || "Sin snippet Python disponible.";
+            document.getElementById("modal-matlab-code").textContent = entry.detail.matlabSnippet || "Sin snippet MATLAB disponible.";
+            document.getElementById("file-detail-modal").classList.remove("hidden");
+            document.body.classList.add("overflow-hidden");
+            lucide.createIcons();
+        }
+
+        function closeDetailModal() {
+            document.getElementById("file-detail-modal").classList.add("hidden");
+            document.body.classList.remove("overflow-hidden");
+        }
+
+        function buildFilters() {
+            const filters = [
+                ["all", "Todos"],
+                ["paired", "Migrados 1:1"],
+                ["python-only", "Nuevos en Python"],
+                ["matlab-only", "Solo MATLAB"],
+            ];
+            document.getElementById("kind-filters").innerHTML = filters.map(([value, label]) => `
+                <button onclick="setFilter('${value}')" class="px-3 py-1.5 rounded-full border text-xs font-semibold ${currentFilter === value ? "filter-active" : "filter-idle"}">
+                    ${label}
+                </button>
+            `).join("");
+        }
+
+        function filteredEntries() {
+            return allEntries.filter(entry => {
+                const matchesKind = currentFilter === "all" ? true : entry.kind === currentFilter;
+                const haystack = `${entry.id} ${entry.matlabName} ${entry.pythonName} ${entry.category} ${entry.purpose}`.toLowerCase();
+                const matchesSearch = haystack.includes(currentSearch.toLowerCase());
+                return matchesKind && matchesSearch;
+            });
+        }
+
+        function navButtonClass(disabled) {
+            return disabled
+                ? "nav-button-disabled rounded-xl px-3 py-2.5"
+                : "nav-button rounded-xl px-3 py-2.5";
+        }
+
+        function renderInspectorPicker() {
+            const entries = filteredEntries();
+            if (!entries.some(entry => entry.id === currentEntryId) && entries.length) {
+                currentEntryId = entries[0].id;
+            }
+
+            const entrySelect = document.getElementById("entry-select");
+            const resultCount = document.getElementById("search-result-count");
+            const pickerPosition = document.getElementById("picker-position");
+            const pickerPositionInline = document.getElementById("picker-position-inline");
+            const prevButton = document.getElementById("prev-entry");
+            const nextButton = document.getElementById("next-entry");
+
+            resultCount.textContent = `${entries.length} archivo${entries.length === 1 ? "" : "s"}`;
+
+            if (!entries.length) {
+                currentEntryId = null;
+                entrySelect.innerHTML = '<option value="">Sin coincidencias</option>';
+                pickerPosition.textContent = "Archivo 0 de 0";
+                pickerPositionInline.textContent = "Archivo 0 de 0";
+                prevButton.disabled = true;
+                nextButton.disabled = true;
+                prevButton.className = navButtonClass(true);
+                nextButton.className = navButtonClass(true);
+                document.getElementById("diff-output").innerHTML = '<div class="p-6 text-sm text-slate-500">Ajusta la búsqueda o el filtro para volver a cargar un diff.</div>';
+                return;
+            }
+
+            entrySelect.innerHTML = entries.map(entry => `
+                <option value="${escapeHtml(entry.id)}">${escapeHtml(entry.pythonName)} · ${escapeHtml(entry.category)} · ${escapeHtml(entry.statusLabel)}</option>
+            `).join("");
+            entrySelect.value = currentEntryId;
+
+            const currentIndex = Math.max(entries.findIndex(entry => entry.id === currentEntryId), 0);
+            pickerPosition.textContent = `Archivo ${currentIndex + 1} de ${entries.length}`;
+            pickerPositionInline.textContent = `Archivo ${currentIndex + 1} de ${entries.length}`;
+
+            prevButton.disabled = currentIndex <= 0;
+            nextButton.disabled = currentIndex >= entries.length - 1;
+            prevButton.className = navButtonClass(prevButton.disabled);
+            nextButton.className = navButtonClass(nextButton.disabled);
+            lucide.createIcons();
+            renderDiff(currentEntryId);
+        }
+
+        function setFilter(value) {
+            currentFilter = value;
+            buildFilters();
+            renderInspectorPicker();
+        }
+
+        function openInspector(id) {
+            currentEntryId = id;
+            switchTab("diff");
+            buildFilters();
+            renderInspectorPicker();
+        }
+
+        function selectEntry(id) {
+            currentEntryId = id;
+            renderInspectorPicker();
+        }
+
+        function moveEntry(step) {
+            const entries = filteredEntries();
+            const index = entries.findIndex(entry => entry.id === currentEntryId);
+            if (index === -1) return;
+            const nextEntry = entries[index + step];
+            if (!nextEntry) return;
+            currentEntryId = nextEntry.id;
+            renderInspectorPicker();
+        }
+
+        function statCard(label, value) {
+            return `
+                <span class="mini-stat">${label}<strong>${value}</strong></span>
+            `;
+        }
+
+        function formatCode(code) {
+            if (!code) {
+                return '<span class="diff-empty-note">(sin contenido)</span>';
+            }
+            return escapeHtml(code);
+        }
+
+        function buildStructuredPatch(entry) {
+            const beforeName = entry.matlabRelPath || "Sin archivo MATLAB";
+            const afterName = entry.pythonRelPath || "Sin archivo Python";
+            return Diff.structuredPatch(
+                beforeName,
+                afterName,
+                entry.matlabCode || "",
+                entry.pythonCode || "",
+                "Original MATLAB",
+                "Estado Python",
+                { context: 100000 }
+            );
+        }
+
+        function buildUnifiedRows(entry) {
+            const patch = buildStructuredPatch(entry);
+            let oldLine = 1;
+            let newLine = 1;
+            let rows = "";
+
+            if (!patch.hunks.length) {
+                return `<div class="p-6 text-sm text-slate-500">No hay diferencias detectadas entre los archivos seleccionados.</div>`;
+            }
+
+            patch.hunks.forEach((hunk) => {
+                rows += `<tr class="diff-separator"><td colspan="3">${escapeHtml(hunk.oldStart + "," + hunk.oldLines + " -> " + hunk.newStart + "," + hunk.newLines)}</td></tr>`;
+                hunk.lines.forEach((line) => {
+                    const marker = line[0];
+                    const content = line.slice(1);
+                    if (marker === "\\") {
+                        return;
+                    }
+
+                    if (marker === " ") {
+                        rows += `
+                            <tr class="diff-row-context">
+                                <td class="diff-num">${oldLine}</td>
+                                <td class="diff-num">${newLine}</td>
+                                <td class="diff-code-cell"><pre class="diff-code">${formatCode(content)}</pre></td>
+                            </tr>
+                        `;
+                        oldLine += 1;
+                        newLine += 1;
+                    } else if (marker === "-") {
+                        rows += `
+                            <tr class="diff-row-removed">
+                                <td class="diff-num">${oldLine}</td>
+                                <td class="diff-num"></td>
+                                <td class="diff-code-cell"><pre class="diff-code">${formatCode(content)}</pre></td>
+                            </tr>
+                        `;
+                        oldLine += 1;
+                    } else if (marker === "+") {
+                        rows += `
+                            <tr class="diff-row-added">
+                                <td class="diff-num"></td>
+                                <td class="diff-num">${newLine}</td>
+                                <td class="diff-code-cell"><pre class="diff-code">${formatCode(content)}</pre></td>
+                            </tr>
+                        `;
+                        newLine += 1;
+                    }
+                });
+            });
+
+            return `
+                <table class="diff-table">
+                    <thead>
+                        <tr>
+                            <th class="diff-num">MATLAB</th>
+                            <th class="diff-num">Python</th>
+                            <th class="text-left px-3 py-2">Codigo</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+
+        function renderSideBySideHunk(hunk, state) {
+            let rows = "";
+            let index = 0;
+            while (index < hunk.lines.length) {
+                const line = hunk.lines[index];
+                const marker = line[0];
+                if (marker === "\\") {
+                    index += 1;
+                    continue;
+                }
+
+                if (marker === " ") {
+                    const content = line.slice(1);
+                    rows += `
+                        <tr>
+                            <td class="diff-num">${state.oldLine}</td>
+                            <td class="diff-code-cell diff-row-context"><pre class="diff-code">${formatCode(content)}</pre></td>
+                            <td class="diff-num">${state.newLine}</td>
+                            <td class="diff-code-cell diff-row-context"><pre class="diff-code">${formatCode(content)}</pre></td>
+                        </tr>
+                    `;
+                    state.oldLine += 1;
+                    state.newLine += 1;
+                    index += 1;
+                    continue;
+                }
+
+                if (marker === "-") {
+                    const removed = [];
+                    while (index < hunk.lines.length && hunk.lines[index][0] === "-") {
+                        removed.push(hunk.lines[index].slice(1));
+                        index += 1;
+                    }
+                    const added = [];
+                    while (index < hunk.lines.length && hunk.lines[index][0] === "+") {
+                        added.push(hunk.lines[index].slice(1));
+                        index += 1;
+                    }
+                    const total = Math.max(removed.length, added.length);
+                    for (let offset = 0; offset < total; offset += 1) {
+                        const left = removed[offset];
+                        const right = added[offset];
+                        const leftNumber = left !== undefined ? state.oldLine++ : "";
+                        const rightNumber = right !== undefined ? state.newLine++ : "";
+                        rows += `
+                            <tr>
+                                <td class="diff-num">${leftNumber}</td>
+                                <td class="diff-code-cell ${left !== undefined ? "diff-row-removed" : "diff-row-empty"}"><pre class="diff-code">${formatCode(left || "")}</pre></td>
+                                <td class="diff-num">${rightNumber}</td>
+                                <td class="diff-code-cell ${right !== undefined ? "diff-row-added" : "diff-row-empty"}"><pre class="diff-code">${formatCode(right || "")}</pre></td>
+                            </tr>
+                        `;
+                    }
+                    continue;
+                }
+
+                if (marker === "+") {
+                    const added = [];
+                    while (index < hunk.lines.length && hunk.lines[index][0] === "+") {
+                        added.push(hunk.lines[index].slice(1));
+                        index += 1;
+                    }
+                    added.forEach((content) => {
+                        rows += `
+                            <tr>
+                                <td class="diff-num"></td>
+                                <td class="diff-code-cell diff-row-empty"><pre class="diff-code">${formatCode("")}</pre></td>
+                                <td class="diff-num">${state.newLine++}</td>
+                                <td class="diff-code-cell diff-row-added"><pre class="diff-code">${formatCode(content)}</pre></td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+
+            return rows;
+        }
+
+        function buildSideBySideRows(entry) {
+            const patch = buildStructuredPatch(entry);
+            if (!patch.hunks.length) {
+                return `<div class="p-6 text-sm text-slate-500">No hay diferencias detectadas entre los archivos seleccionados.</div>`;
+            }
+
+            const state = { oldLine: 1, newLine: 1 };
+            let rows = "";
+            patch.hunks.forEach((hunk) => {
+                rows += `<tr class="diff-separator"><td colspan="4">${escapeHtml(hunk.oldStart + "," + hunk.oldLines + " -> " + hunk.newStart + "," + hunk.newLines)}</td></tr>`;
+                rows += renderSideBySideHunk(hunk, state);
+            });
+
+            return `
+                <div class="diff-split-grid">
+                    <div class="diff-pane">
+                        <table class="diff-table">
+                            <thead>
+                                <tr>
+                                    <th class="diff-num">MATLAB</th>
+                                    <th class="text-left px-3 py-2">${escapeHtml(entry.matlabName)}</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                    <div class="diff-pane">
+                        <table class="diff-table">
+                            <thead>
+                                <tr>
+                                    <th class="diff-num">Python</th>
+                                    <th class="text-left px-3 py-2">${escapeHtml(entry.pythonName)}</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+                <table class="diff-table">
+                    <colgroup>
+                        <col style="width: 56px">
+                        <col style="width: calc(50% - 56px)">
+                        <col style="width: 56px">
+                        <col style="width: calc(50% - 56px)">
+                    </colgroup>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+
+        function renderDiff(id) {
+            const entry = allEntries.find(item => item.id === id);
+            if (!entry) return;
+
+            document.getElementById("selected-status").textContent = entry.statusLabel;
+            document.getElementById("selected-status").className = `pill-badge ${kindBadge(entry.kind)}`;
+            document.getElementById("selected-category").textContent = entry.category;
+            document.getElementById("selected-title").textContent = `${entry.matlabName} → ${entry.pythonName}`;
+            document.getElementById("selected-purpose").textContent = entry.purpose;
+            document.getElementById("selected-transform").textContent = entry.transform;
+            document.getElementById("selected-notes").innerHTML = (entry.notes.length ? entry.notes : ["Sin notas adicionales para este archivo."]).map(note => `<li>${escapeHtml(note)}</li>`).join("");
+            document.getElementById("selected-matlab-name").textContent = entry.matlabName;
+            document.getElementById("selected-python-name").textContent = entry.pythonName;
+
+            const matlabLink = document.getElementById("selected-matlab-link");
+            if (entry.matlabRelPath) {
+                matlabLink.textContent = entry.matlabRelPath;
+                matlabLink.href = encodeURI(entry.matlabRelPath);
+                matlabLink.classList.remove("hidden");
+            } else {
+                matlabLink.textContent = "Sin archivo MATLAB asociado";
+                matlabLink.removeAttribute("href");
+            }
+
+            const pythonLink = document.getElementById("selected-python-link");
+            if (entry.pythonRelPath) {
+                pythonLink.textContent = entry.pythonRelPath;
+                pythonLink.href = encodeURI(entry.pythonRelPath);
+                pythonLink.classList.remove("hidden");
+            } else {
+                pythonLink.textContent = "Sin archivo Python asociado";
+                pythonLink.removeAttribute("href");
+            }
+
+            document.getElementById("selected-stats").innerHTML = [
+                statCard("Lineas MATLAB", entry.matlabLines),
+                statCard("Lineas Python", entry.pythonLines),
+                statCard("Lineas agregadas", entry.addedLines),
+                statCard("Lineas removidas", entry.removedLines),
+            ].join("");
+            const format = document.getElementById("diff-view-mode").value;
+            document.getElementById("diff-output").innerHTML =
+                format === "side-by-side" ? buildSideBySideRows(entry) : buildUnifiedRows(entry);
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;");
+        }
+
+        function init() {
+            appendDebugLine("init() iniciado");
+            // #region agent log
+            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H2',location:'generate_migration_audit.py:1910',message:'Init iniciado',data:{hasSummaryCards:!!document.getElementById('summary-cards'),hasQuickFacts:!!document.getElementById('quick-facts'),hasTable:!!document.getElementById('transformation-table')},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            try {
+                initHeader();
+                appendDebugLine("initHeader ok");
+                renderSummary();
+                appendDebugLine("renderSummary ok");
+                renderTransformationTable();
+                appendDebugLine("renderTransformationTable ok");
+                buildFilters();
+                appendDebugLine("buildFilters ok");
+                renderInspectorPicker();
+                appendDebugLine("renderInspectorPicker ok");
+                document.getElementById("search-input").addEventListener("input", (event) => {
+                    currentSearch = event.target.value;
+                    renderInspectorPicker();
+                });
+                document.getElementById("entry-select").addEventListener("change", (event) => {
+                    currentEntryId = event.target.value;
+                    renderInspectorPicker();
+                });
+                document.getElementById("prev-entry").addEventListener("click", () => moveEntry(-1));
+                document.getElementById("next-entry").addEventListener("click", () => moveEntry(1));
+                document.getElementById("diff-view-mode").addEventListener("change", () => renderDiff(currentEntryId));
+                window.addEventListener("keydown", (event) => {
+                    if (event.key === "Escape") {
+                        closeDetailModal();
+                    }
+                });
+                lucide.createIcons();
+                appendDebugLine("lucide.createIcons ok");
+            } catch (error) {
+                appendDebugLine("init() error", { name: error?.name, message: error?.message });
+                throw error;
+            }
+        }
+
+        window.addEventListener("error", (event) => {
+            appendDebugLine("window error", { message: event.message, line: event.lineno, column: event.colno });
+            // #region agent log
+            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H4',location:'generate_migration_audit.py:1941',message:'window error',data:{message:event.message,filename:event.filename,lineno:event.lineno,colno:event.colno},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>

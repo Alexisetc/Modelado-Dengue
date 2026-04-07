@@ -84,6 +84,15 @@ Yang params model/
 4. Revisar las tablas de literatura ya incluidas y recalcular ajustes:
    `python -m dengue_model.params_b_fits --no-plot`
 
+## Auditoria web de migracion
+
+- Reporte generado: `Auditoría de Migración Yang Params Model.html`
+- Generador del reporte: `generate_migration_audit.py`
+- Regeneracion:
+  `python generate_migration_audit.py`
+
+El reporte no usa ejemplos estaticos. Lee los archivos actuales de `Yang params model/` y `dengue_model/`, reconstruye el resumen de transformacion y vuelve a generar el diff archivo por archivo.
+
 ## Modulos clave
 
 - `my_parameters.py`: reemplaza `global P` por un objeto central con parametros y funciones dependientes del tiempo.
