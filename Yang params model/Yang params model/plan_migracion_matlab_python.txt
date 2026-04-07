@@ -1,0 +1,268 @@
+================================================================================
+PLAN DE MIGRACION: MATLAB -> PYTHON
+Modelo de Dengue - Yang Params Model
+Fecha: 2026-04-07
+================================================================================
+
+
+1. ESTRUCTURA DEL PROYECTO PYTHON
+================================================================================
+
+dengue_model/
+    __init__.py
+    my_parameters.py       <- my_parameters.m
+    temp.py                <- temp.m
+    muE_a.py               <- muE_a.m
+    muE_b.py               <- muE_b.m
+    muF_a.py               <- muF_a.m
+    muF_b.py               <- muF_b.m
+    muL_a.py               <- muL_a.m  [ATENCION: gotcha fliplr]
+    muL_b.py               <- muL_b.m
+    phi_A.py               <- phi_A.m
+    phi_B.py               <- phi_B.m
+    phi_p_a.py             <- phi_p_a.m
+    phi_p_b.py             <- phi_p_b.m
+    psi1_a.py              <- psi1_a.m  [ATENCION: gotcha polyfit]
+    psi1_b.py              <- psi1_b.m
+    psi2_a.py              <- psi2_a.m
+    psi2_b.py              <- psi2_b.m
+    myODE_ELF.py           <- myODE_ELF.m
+    error_fun_betas.py     <- error_fun_betas.m  [ATENCION: gotcha tspan]
+    figure_setups.py       <- figure_setups.m
+    time_col_date.py       <- time_col_date.m
+    params_b_fits.py       <- params_b_fits.m
+    ELF.py                 <- ELF.m  (punto de entrada principal)
+data/
+    full_table_Lita.mat    <- sin cambios (archivo de datos existente)
+
+
+2. DEPENDENCIAS PYTHON NECESARIAS
+================================================================================
+
+    pip install numpy scipy matplotlib pandas
+
+
+3. EQUIVALENCIAS CLAVE MATLAB -> PYTHON
+================================================================================
+
+MATLAB                                  PYTHON
+------                                  ------
+global P (struct)                       SimpleNamespace en my_parameters.py,
+                                        importado por todos los modulos
+
+@(t,y) f(t,y,p)  (function handle)     lambda t, y: f(t, y, p)
+
+ode45(...)                              scipy.integrate.solve_ivp(
+                                            ..., method='RK45')
+
+fminsearch(...)                         scipy.optimize.minimize(
+                                            ..., method='Nelder-Mead')
+
+polyval(c, x)                           numpy.polyval(c, x)
+                                        (mismo orden de coeficientes)
+
+polyfit(x, y, n)                        numpy.polyfit(x, y, n)
+
+interp1(..., 'extrap')                  scipy.interpolate.interp1d(
+                                            ..., fill_value='extrapolate',
+                                            bounds_error=False)
+
+load('*.mat')                           scipy.io.loadmat(
+                                            '*.mat',
+                                            squeeze_me=True,
+                                            struct_as_record=False)
+
+hold on; plot(...)                      Usar objeto ax retornado por
+                                        figure_setups.setup()
+
+
+4. DESCRIPCION ARCHIVO POR ARCHIVO
+================================================================================
+
+--- temp.py ---
+Funcion de temperatura periodica estacional.
+Usa coseno (dos metodos: white y griffin).
+Libreria: numpy
+Nota: el argumento 'day' puede ser escalar o array numpy (ambos funcionan).
+
+--- muE_a.py / muE_b.py ---
+Tasas de mortalidad en etapa de huevo para aegypti y albopictus.
+muE_a: 1 / polyval(coeffs, temp(day, 0))
+muE_b: derivada de relacion entre psi y supervivencia de huevo.
+Libreria: numpy
+
+--- muF_a.py / muF_b.py ---
+Tasas de mortalidad de hembras adultas.
+NOTA: en my_parameters.py se aplica escala adicional:
+    P.mu_F_a = lambda t: muF_a(t) * 3
+    P.mu_F_b = lambda t: muF_b(t) * 10
+Libreria: numpy
+
+--- muL_a.py ---
+[ATENCION - GOTCHA CRITICO: fliplr]
+MATLAB usa polyval(fliplr(coefficients), x).
+Los coeficientes originales estan en orden de menor a mayor potencia.
+fliplr los invierte antes de pasarlos a polyval.
+En Python los coeficientes deben almacenarse ya invertidos:
+    coefficients_flipped = [6.794e-6, -6.778e-4, 2.457e-2, -3.797e-1, 2.130]
+Libreria: numpy
+
+--- muL_b.py ---
+Mortalidad larvaria para albopictus.
+Estructura derivada: (psi2b(x) / eas(x)) - psi2b(x)
+Libreria: numpy
+
+--- phi_A.py / phi_B.py ---
+Tasas de fecundidad/oviposicion.
+phi_B es producto de dos evaluaciones polinomiales (tasa de picadura x fecundidad).
+Libreria: numpy
+
+--- psi1_a.py ---
+[ATENCION - GOTCHA: polyfit dentro del loop]
+MATLAB recalcula el ajuste polinomial en cada llamada a la funcion.
+En Python mover polyfit al nivel de modulo (se ejecuta una sola vez al importar):
+    _EP   = [0.811, 0.939, 0.96, 0.933, 0.828, 0.485]
+    _Temp = [16, 22, 25, 28, 31, 35]
+    _p    = numpy.polyfit(_Temp, _EP, 5)   # <- nivel de modulo
+Libreria: numpy
+Dependencia interna: llama a muE_a(day)
+
+--- psi1_b.py / psi2_a.py / psi2_b.py ---
+Tasas de desarrollo entre etapas.
+Evaluacion directa de polinomio en temperatura.
+Libreria: numpy
+
+--- phi_p_a.py / phi_p_b.py ---
+Tasas de oviposicion per capita compuestas.
+Formula: (phi(day) * P.sigma) / (muF(day) + P.sigma)
+NOTA: usa muF_a/muF_b directo (sin el factor de escala *3 o *10 de P.mu_F_a).
+Libreria: ninguna adicional
+
+--- my_parameters.py ---
+Registro global de parametros. Reemplaza 'global P' de MATLAB.
+Usa SimpleNamespace para acceso tipo atributo (P.K, P.bF_a, etc.)
+
+Patron de uso:
+    # En my_parameters.py
+    from types import SimpleNamespace
+    P = SimpleNamespace()
+    P.K       = 1e5
+    P.bF_a    = 0.5
+    P.mu_F_a  = lambda t: muF_a(t) * 3
+    P.phi_p_a = phi_p_a
+    ...
+
+    # En cualquier otro modulo
+    from dengue_model.my_parameters import P
+
+ADVERTENCIA - Importacion circular:
+    my_parameters.py importa phi_p_a/b
+    phi_p_a/b importan P de my_parameters
+    Esto funciona porque phi_p_* solo usan P.sigma en tiempo de LLAMADA,
+    no en tiempo de importacion. Si surge error, encapsular imports de
+    phi_p_* en una funcion setup_P() y llamarla desde ELF.py.
+
+--- myODE_ELF.py ---
+Sistema de 6 ecuaciones diferenciales ordinarias.
+Estados: [E_a, L_a, F_a, E_b, L_b, F_b]
+Compartimentos albopictus forzados a cero antes del dia 355.
+
+NOTA sobre umbral temporal:
+    Archivo .m actual: t < 355  (CORRECTO, usar este)
+    Archivo .asv (backup): t < 371  (IGNORAR)
+
+Patron solve_ivp:
+    sol = solve_ivp(
+        fun=lambda t, y: myODE_ELF(t, y, p),
+        t_span=(tspan[0], tspan[-1]),
+        y0=y0,
+        method='RK45',
+        t_eval=tspan
+    )
+    y = sol.y.T   # <- IMPORTANTE: transponer siempre
+
+--- error_fun_betas.py ---
+Funcion de error para ajuste de parametros (betas de competencia).
+Corre dos segmentos ODE, los une, interpola a fechas de campo y calcula SSE.
+
+[ATENCION - GOTCHA: variable tspan no definida]
+El MATLAB original referencia 'tspan' en la llamada a interp1, pero tspan
+no existe dentro de error_fun_betas.m (viene de ELF.m). Es un bug heredado.
+En Python usar 't' (el vector tiempo concatenado de ambos segmentos).
+
+Carga del archivo .mat:
+    import scipy.io
+    raw = scipy.io.loadmat('data/full_table_Lita.mat',
+                           squeeze_me=True, struct_as_record=False)
+    table_data  = raw['table_data']
+    days_passed = table_data.Days_Passed
+    num_aeg     = table_data.Num_aeg
+    num_alb     = table_data.Num_alb
+
+--- figure_setups.py ---
+Configuracion global de graficas. Reemplaza set(0,'DefaultX',...) de MATLAB.
+Variables de color globales -> constantes de modulo.
+La funcion setup() retorna (fig, ax) para uso explicito.
+
+--- params_b_fits.py ---
+Script standalone de ajuste de parametros para Ae. albopictus.
+No es importado por ningun otro modulo.
+Fuentes: datos de Mordecai y Marini (literatura).
+NOTA: rutas hardcodeadas a macOS (/Users/joanponce/...) deben
+reemplazarse con rutas relativas o variable DATA_DIR configurable.
+Libreria: numpy, pandas, matplotlib
+
+--- time_col_date.py ---
+Procesa CSV de fechas de campo, calcula dias transcurridos, guarda .mat.
+Solo necesita ejecutarse una vez (el .mat ya existe).
+Libreria: pandas, scipy.io
+
+--- ELF.py (punto de entrada) ---
+Script principal. Calcula condiciones iniciales de equilibrio,
+corre el ODE y genera graficas de fracciones por compartimento.
+
+Patron de ejecucion:
+    if __name__ == '__main__':
+        main()
+
+
+5. GOTCHAS CRITICOS - RESUMEN
+================================================================================
+
+N  Problema                     MATLAB                      Python (solucion)
+-- ------                       ------                      -----------------
+1  Forma de salida ODE          y es (n_tiempos, 6)         sol.y.T para transponer
+2  fliplr en muL_a              polyval(fliplr(c), x)       Almacenar c ya invertido
+3  polyfit en psi1_a            Recalcula en cada llamada   Mover a nivel de modulo
+4  tspan en error_fun_betas     Bug: variable no definida   Usar 't' concatenado
+5  Importacion circular         No aplica en MATLAB         phi_p_* usan P en llamada
+6  Archivo .asv vs .m           .asv usa t < 371            Usar .m: t < 355
+7  Escala muF_a/muF_b           En my_parameters *3 y *10  lambda t: muF_a(t)*3
+8  Rutas en params_b_fits       /Users/joanponce/...        Usar DATA_DIR relativo
+9  Acceso a struct .mat         data.table_data.Days_Passed squeeze_me + struct_as_record
+10 hold on / plot               Estado global de figura     Usar objeto ax explicito
+
+
+6. ORDEN DE EJECUCION RECOMENDADO
+================================================================================
+
+Paso 1 (opcional, solo si se reprocesa el CSV):
+    python -m dengue_model.time_col_date
+
+Paso 2 (opcional, solo si se reajustan coeficientes de literatura):
+    python -m dengue_model.params_b_fits
+
+Paso 3 (simulacion principal):
+    python -m dengue_model.ELF
+
+Paso 4 (ajuste de parametros beta):
+    Llamar error_fun_betas desde un optimizador en ELF.py o script separado:
+    from scipy.optimize import minimize
+    from dengue_model.error_fun_betas import error_fun_betas
+    result = minimize(error_fun_betas, x0=[0.5, 0.5], method='Nelder-Mead')
+    print('Betas estimados:', result.x)
+
+
+================================================================================
+FIN DEL PLAN
+================================================================================
