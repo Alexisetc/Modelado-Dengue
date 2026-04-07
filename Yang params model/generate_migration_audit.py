@@ -1095,26 +1095,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             line-height: 1.55;
             overflow-x: auto;
         }
-        .debug-panel {
-            position: fixed;
-            right: 14px;
-            bottom: 14px;
-            z-index: 9999;
-            width: min(460px, calc(100vw - 28px));
-            max-height: 42vh;
-            overflow: auto;
-            border-radius: 18px;
-            background: rgba(15, 23, 42, 0.96);
-            color: #e5edf5;
-            border: 1px solid #334155;
-            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
-            padding: 0.9rem 1rem;
-            font-size: 12px;
-            line-height: 1.5;
-        }
-        .debug-line + .debug-line {
-            margin-top: 0.35rem;
-        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -1371,47 +1351,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
     </div>
 
-    <div id="debug-panel" class="debug-panel hidden"></div>
     <script id="audit-data" type="application/json">__AUDIT_DATA__</script>
     <script>
-        function appendDebugLine(message, data) {
-            const panel = document.getElementById("debug-panel");
-            if (!panel) return;
-            panel.classList.remove("hidden");
-            const line = document.createElement("div");
-            line.className = "debug-line mono";
-            const suffix = data ? ` :: ${JSON.stringify(data)}` : "";
-            line.textContent = `${new Date().toLocaleTimeString()} | ${message}${suffix}`;
-            panel.appendChild(line);
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            appendDebugLine("DOMContentLoaded");
-        });
-
-        window.addEventListener("load", () => {
-            appendDebugLine("window.load");
-        });
-
         const rawAuditData = document.getElementById("audit-data").textContent;
-        appendDebugLine("audit-data leido", { length: rawAuditData.length });
-        // #region agent log
-        fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H1',location:'generate_migration_audit.py:1356',message:'audit-data recibido',data:{length:rawAuditData.length,startsWith:rawAuditData.slice(0,80)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
-        let audit;
-        try {
-            audit = JSON.parse(rawAuditData);
-            appendDebugLine("JSON.parse correcto", { entryCount: audit?.entries?.length ?? null });
-            // #region agent log
-            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H1',location:'generate_migration_audit.py:1361',message:'JSON parse correcto',data:{entryCount:audit?.entries?.length ?? null,summaryKeys:Object.keys(audit?.summary || {})},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
-        } catch (error) {
-            appendDebugLine("JSON.parse fallo", { name: error?.name, message: error?.message });
-            // #region agent log
-            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H1',location:'generate_migration_audit.py:1365',message:'Fallo JSON.parse',data:{name:error?.name,message:error?.message},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
-            throw error;
-        }
+        const audit = JSON.parse(rawAuditData);
         const summary = audit.summary;
         const allEntries = audit.entries;
         let activeTab = "resumen";
@@ -1484,10 +1427,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         function renderTransformationTable() {
             const tbody = document.getElementById("transformation-table");
-            appendDebugLine("renderTransformationTable", { entryCount: allEntries.length, firstEntryId: allEntries[0]?.id ?? null });
-            // #region agent log
-            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H3',location:'generate_migration_audit.py:1430',message:'Entrando a renderTransformationTable',data:{entryCount:allEntries.length,firstEntryId:allEntries[0]?.id ?? null,hasAlerts:Array.isArray(allEntries[0]?.detail?.alerts)},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             tbody.innerHTML = allEntries.map(entry => `
                 <tr class="hover:bg-slate-50/70">
                     <td class="px-3 py-3">
@@ -1968,51 +1907,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }
 
         function init() {
-            appendDebugLine("init() iniciado");
-            // #region agent log
-            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H2',location:'generate_migration_audit.py:1910',message:'Init iniciado',data:{hasSummaryCards:!!document.getElementById('summary-cards'),hasQuickFacts:!!document.getElementById('quick-facts'),hasTable:!!document.getElementById('transformation-table')},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
-            try {
-                initHeader();
-                appendDebugLine("initHeader ok");
-                renderSummary();
-                appendDebugLine("renderSummary ok");
-                renderTransformationTable();
-                appendDebugLine("renderTransformationTable ok");
-                buildFilters();
-                appendDebugLine("buildFilters ok");
+            initHeader();
+            renderSummary();
+            renderTransformationTable();
+            buildFilters();
+            renderInspectorPicker();
+            document.getElementById("search-input").addEventListener("input", (event) => {
+                currentSearch = event.target.value;
                 renderInspectorPicker();
-                appendDebugLine("renderInspectorPicker ok");
-                document.getElementById("search-input").addEventListener("input", (event) => {
-                    currentSearch = event.target.value;
-                    renderInspectorPicker();
-                });
-                document.getElementById("entry-select").addEventListener("change", (event) => {
-                    currentEntryId = event.target.value;
-                    renderInspectorPicker();
-                });
-                document.getElementById("prev-entry").addEventListener("click", () => moveEntry(-1));
-                document.getElementById("next-entry").addEventListener("click", () => moveEntry(1));
-                document.getElementById("diff-view-mode").addEventListener("change", () => renderDiff(currentEntryId));
-                window.addEventListener("keydown", (event) => {
-                    if (event.key === "Escape") {
-                        closeDetailModal();
-                    }
-                });
-                lucide.createIcons();
-                appendDebugLine("lucide.createIcons ok");
-            } catch (error) {
-                appendDebugLine("init() error", { name: error?.name, message: error?.message });
-                throw error;
-            }
+            });
+            document.getElementById("entry-select").addEventListener("change", (event) => {
+                currentEntryId = event.target.value;
+                renderInspectorPicker();
+            });
+            document.getElementById("prev-entry").addEventListener("click", () => moveEntry(-1));
+            document.getElementById("next-entry").addEventListener("click", () => moveEntry(1));
+            document.getElementById("diff-view-mode").addEventListener("change", () => renderDiff(currentEntryId));
+            window.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    closeDetailModal();
+                }
+            });
+            lucide.createIcons();
         }
-
-        window.addEventListener("error", (event) => {
-            appendDebugLine("window error", { message: event.message, line: event.lineno, column: event.colno });
-            // #region agent log
-            fetch('http://127.0.0.1:7567/ingest/2c3908d1-fb5e-4059-90d0-7a5c743c6b70',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e39f56'},body:JSON.stringify({sessionId:'e39f56',runId:'pre-fix',hypothesisId:'H4',location:'generate_migration_audit.py:1941',message:'window error',data:{message:event.message,filename:event.filename,lineno:event.lineno,colno:event.colno},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
-        });
 
         window.onload = init;
     </script>
