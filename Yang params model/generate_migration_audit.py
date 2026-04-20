@@ -10,9 +10,9 @@ from typing import Iterable
 
 
 ROOT = Path(__file__).resolve().parent
-MATLAB_DIR = ROOT / "Yang params model"
+MATLAB_DIR = ROOT / "matlab_original"
 PYTHON_DIR = ROOT / "dengue_model"
-OUTPUT_HTML = ROOT / "Auditoría de Migración Yang Params Model.html"
+OUTPUT_HTML = ROOT / "docs" / "Auditoria_Migracion.html"
 
 
 FILE_METADATA = {
@@ -1106,7 +1106,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h1 class="text-xl font-bold">Auditoría de Migración: Yang Params Model</h1>
                 </div>
                 <p class="text-sm text-slate-600 mt-2">
-                    Reporte generado desde los archivos reales de <span class="mono">Yang params model/</span> y <span class="mono">dengue_model/</span>.
+                    Reporte generado desde los archivos reales de <span class="mono">matlab_original/</span> y <span class="mono">dengue_model/</span>.
                 </p>
             </div>
             <div class="text-sm text-slate-600 space-y-1">

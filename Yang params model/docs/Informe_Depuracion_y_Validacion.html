@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe - Depuración y Validación del Modelo ELF Dengue</title>
+<style>
+  :root{
+    --azul: #0b3d91;
+    --azul-claro: #2e6fd8;
+    --gris: #4a4a4a;
+    --gris-claro: #f3f4f6;
+    --verde: #0f7a4f;
+    --ambar: #a15c00;
+    --rojo: #a8301f;
+    --borde: #d0d5dd;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    color: var(--gris);
+    line-height: 1.6;
+    margin: 0;
+    background: #fafbfc;
+  }
+  .wrap{
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 40px 48px 80px;
+    background: #fff;
+    border-left: 1px solid var(--borde);
+    border-right: 1px solid var(--borde);
+  }
+  header.cover{
+    border-bottom: 3px solid var(--azul);
+    padding-bottom: 22px;
+    margin-bottom: 32px;
+  }
+  header.cover .etiq{
+    color: var(--azul-claro);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  header.cover h1{
+    margin: 8px 0 6px;
+    font-size: 28px;
+    color: var(--azul);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  header.cover .subtitle{
+    color: var(--gris);
+    font-size: 15px;
+  }
+  header.cover .meta{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--gris);
+  }
+  header.cover .meta span strong{color: #111; display:block; font-size: 11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;}
+
+  h2{
+    color: var(--azul);
+    font-size: 20px;
+    margin-top: 44px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--borde);
+  }
+  h3{
+    color: #1a2b4c;
+    font-size: 16px;
+    margin-top: 26px;
+    margin-bottom: 8px;
+  }
+  h4{
+    color: #1a2b4c;
+    font-size: 14px;
+    margin-top: 18px;
+    margin-bottom: 6px;
+  }
+  p{margin: 10px 0;}
+  ul, ol{margin: 8px 0 14px 0; padding-left: 22px;}
+  li{margin-bottom: 6px;}
+
+  .resumen{
+    background: var(--gris-claro);
+    border-left: 4px solid var(--azul);
+    padding: 16px 20px;
+    margin: 20px 0 32px;
+    border-radius: 0 6px 6px 0;
+  }
+  .resumen p{margin: 6px 0;}
+
+  .toc{
+    background: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    padding: 16px 22px;
+    margin: 24px 0 32px;
+    font-size: 14px;
+  }
+  .toc h4{
+    margin: 0 0 10px;
+    color: var(--azul);
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .toc ol{margin: 0; padding-left: 22px; columns: 2; column-gap: 24px;}
+  .toc a{color: var(--azul-claro); text-decoration: none;}
+  .toc a:hover{text-decoration: underline;}
+
+  table{
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 13.5px;
+  }
+  th{
+    background: var(--azul);
+    color: #fff;
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+  }
+  td{
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--borde);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td{background: #f8f9fb;}
+
+  code{
+    background: #eef1f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 13px;
+    color: #1a2b4c;
+  }
+  pre{
+    background: #0f1b30;
+    color: #e8eef8;
+    padding: 14px 18px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 12px 0 20px;
+  }
+  pre code{background: transparent; color: inherit; padding: 0;}
+
+  .tree{
+    background: #0f1b30;
+    color: #e8eef8;
+    padding: 18px 22px;
+    border-radius: 6px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    margin: 16px 0 24px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .tree .hl{color: #7fd4ff; font-weight: 600;}
+  .tree .comment{color: #8ba3c7; font-style: italic;}
+  .tree .new{color: #8be3a8;}
+
+  .badge{
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge.ok{background: #d4f3e0; color: var(--verde);}
+  .badge.warn{background: #fcebc8; color: var(--ambar);}
+  .badge.pend{background: #fde2de; color: var(--rojo);}
+  .badge.info{background: #dbe8fb; color: var(--azul);}
+
+  .grid-cards{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin: 18px 0 24px;
+  }
+  .card{
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    padding: 14px 16px;
+    background: #fff;
+  }
+  .card h4{
+    margin: 0 0 6px;
+    color: var(--azul);
+    font-size: 14px;
+  }
+  .card .num{
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--azul-claro);
+    margin-bottom: 2px;
+  }
+  .card p{margin: 4px 0; font-size: 13px;}
+
+  figure{
+    margin: 20px 0 26px;
+    text-align: center;
+  }
+  figure img{
+    max-width: 100%;
+    border: 1px solid var(--borde);
+    border-radius: 4px;
+  }
+  figcaption{
+    font-size: 12.5px;
+    color: var(--gris);
+    margin-top: 10px;
+    padding: 0 30px;
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  .alert{
+    padding: 14px 18px;
+    border-radius: 6px;
+    margin: 16px 0 22px;
+    font-size: 14px;
+  }
+  .alert.warn{
+    background: #fff6e5;
+    border-left: 4px solid var(--ambar);
+  }
+  .alert.info{
+    background: #eaf2fd;
+    border-left: 4px solid var(--azul-claro);
+  }
+  .alert.ok{
+    background: #e6f5ec;
+    border-left: 4px solid var(--verde);
+  }
+
+  .legend{
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  footer{
+    margin-top: 56px;
+    padding-top: 18px;
+    border-top: 1px solid var(--borde);
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+  }
+
+  @media print{
+    body{background:#fff;}
+    .wrap{border: none;}
+    a{color: var(--azul);}
+    .toc ol{columns: 1;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="cover">
+  <div class="etiq">INSPI · EpiSIG · Modelado Dengue</div>
+  <h1>Depuración, Parametrización y Validación del Modelo ELF de Dengue</h1>
+  <div class="subtitle">Fase 2 de la migración MATLAB → Python del modelo Yang Params de competencia entre <em>Aedes aegypti</em> y <em>Aedes albopictus</em></div>
+  <div class="meta">
+    <span><strong>Proyecto</strong>14. Modelado Dengue</span>
+    <span><strong>Componente</strong>Yang params model</span>
+    <span><strong>Fecha</strong>20 de abril de 2026</span>
+    <span><strong>Responsable</strong>Alexis Núñez López</span>
+  </div>
+</header>
+
+<div class="resumen">
+  <strong style="color:var(--azul)">Resumen ejecutivo.</strong>
+  <p>Tras la migración literal de MATLAB a Python (fase previa), el modelo corría pero arrastraba bugs heredados, parámetros esparcidos en múltiples archivos y sin forma de verificar que produjese resultados válidos. Este trabajo transformó ese código operativo pero frágil en un modelo <strong>robusto, totalmente configurable y autovalidable</strong>: corrección de 7 bugs críticos, centralización de todos los parámetros tunables en un único <code>config.py</code>, documentación biológica por módulo, una suite de validación de 25 tests y una reorganización completa de carpetas con documentación explicativa.</p>
+  <p><strong>Estado:</strong> <span class="badge ok">Código operativo</span> <span class="badge ok">25/25 tests</span> <span class="badge ok">Carpetas ordenadas</span> <span class="badge warn">Validación MATLAB pendiente</span></p>
+</div>
+
+<div class="toc">
+  <h4>Contenido</h4>
+  <ol>
+    <li><a href="#donde">¿Dónde está cada cosa?</a></li>
+    <li><a href="#que-presentar">¿Qué se presenta?</a></li>
+    <li><a href="#contexto">Contexto y necesidad</a></li>
+    <li><a href="#objetivos">Objetivos del trabajo</a></li>
+    <li><a href="#fases">Fases ejecutadas</a></li>
+    <li><a href="#productos">Productos (archivo por archivo)</a></li>
+    <li><a href="#graficas">Interpretación de las gráficas</a></li>
+    <li><a href="#validacion">Protocolo de validación sin MATLAB</a></li>
+    <li><a href="#uso">Cómo usarlo y editar parámetros</a></li>
+    <li><a href="#resultados">Resultados numéricos</a></li>
+    <li><a href="#pendiente">Estado actual y pendientes</a></li>
+    <li><a href="#referencias">Referencias</a></li>
+  </ol>
+</div>
+
+<!-- ===== 1. DONDE ===== -->
+<h2 id="donde">1. ¿Dónde está cada cosa?</h2>
+
+<p>La estructura del repositorio después del ordenamiento quedó así. Las etiquetas a la derecha explican qué contiene cada carpeta:</p>
+
+<div class="tree">
+<span class="hl">14. Modelado Dengue/</span>                     <span class="comment">(repositorio git completo)</span>
+├── README.md                       <span class="comment">visión global del repo</span>
+├── .gitignore
+│
+├── <span class="hl">Yang params model/</span>               <span class="comment">★ ENTREGABLE PRINCIPAL — el modelo</span>
+│   ├── README.md                   <span class="comment">doc técnica: cómo correr y cambiar parámetros</span>
+│   ├── <span class="hl">dengue_model/</span>                <span class="comment">código Python del modelo (25 módulos)</span>
+│   ├── <span class="hl">tests/</span>                       <span class="comment">suite de validación (25 tests)</span>
+│   ├── <span class="hl">data/</span>                        <span class="comment">datos e insumos</span>
+│   │   ├── full_table_Lita.mat     <span class="comment">datos de campo procesados</span>
+│   │   ├── params_literature/      <span class="comment">CSVs de literatura (albopictus)</span>
+│   │   ├── python_snapshot.json    <span class="comment">baseline de regresión</span>
+│   │   └── diagnostics/            <span class="comment">figuras y CSV de validación</span>
+│   ├── <span class="hl">matlab_original/</span>             <span class="comment">fuentes .m originales (referencia)</span>
+│   ├── <span class="hl">docs/</span>                        <span class="new">★ informes para presentación</span>
+│   │   ├── Informe_Depuracion_y_Validacion.html  <span class="new">← este documento</span>
+│   │   ├── Auditoria_Migracion.html              <span class="comment">diff MATLAB ↔ Python</span>
+│   │   └── MATLAB_VS_PYTHON_ANALYSIS.md          <span class="comment">análisis técnico</span>
+│   └── generate_migration_audit.py <span class="comment">regenera la auditoría HTML</span>
+│
+├── <span class="hl">Data Mosquitoes/</span>                 <span class="comment">datos de campo (INSPI, LITA 2018-2021)</span>
+│   ├── Raw data/                   <span class="comment">ovitrampas crudas</span>
+│   └── Scripts/                    <span class="comment">CSV consolidado que consume el modelo</span>
+│
+└── <span class="hl">Literature/</span>                      <span class="comment">literatura de referencia (Mordecai, etc.)</span>
+</div>
+
+<div class="alert info">
+  <strong>Aplanamiento aplicado.</strong> Antes existían carpetas duplicadas (<code>Data Mosquitoes/Data Mosquitoes/</code>, <code>Literature/Literature/</code>, <code>Yang params model/Yang params model/</code>). Se aplanaron: la carpeta MATLAB interna fue renombrada a <code>matlab_original/</code>. Toda la documentación HTML/MD se consolidó en <code>docs/</code>.
+</div>
+
+<!-- ===== 2. QUE PRESENTAR ===== -->
+<h2 id="que-presentar">2. ¿Qué se presenta?</h2>
+
+<p>Según el público, el orden de lectura recomendado es:</p>
+
+<table>
+  <thead><tr><th style="width:28%">Público</th><th style="width:40%">Qué mostrar</th><th>Por qué</th></tr></thead>
+  <tbody>
+  <tr>
+    <td><strong>Dirección / no-técnicos</strong></td>
+    <td>Este HTML (<code>docs/Informe_Depuracion_y_Validacion.html</code>) + README raíz</td>
+    <td>Explicación narrativa del qué, por qué y resultados; no requiere leer código.</td>
+  </tr>
+  <tr>
+    <td><strong>Equipo técnico EpiSIG</strong></td>
+    <td>README interno (<code>Yang params model/README.md</code>) + este HTML</td>
+    <td>Cómo correr, cómo editar, estructura del paquete, protocolo de validación.</td>
+  </tr>
+  <tr>
+    <td><strong>Revisores del modelo</strong></td>
+    <td>Este HTML + <code>docs/Auditoria_Migracion.html</code> + código en <code>dengue_model/</code></td>
+    <td>Auditabilidad de la migración y detalles de implementación.</td>
+  </tr>
+  <tr>
+    <td><strong>Repositorio público</strong></td>
+    <td>Todo <code>14. Modelado Dengue/</code> en GitHub: <a href="https://github.com/Alexisetc/Modelado-Dengue">github.com/Alexisetc/Modelado-Dengue</a></td>
+    <td>El repo completo es autosuficiente y reproducible.</td>
+  </tr>
+  </tbody>
+</table>
+
+<!-- ===== 3. CONTEXTO ===== -->
+<h2 id="contexto">3. Contexto y necesidad</h2>
+
+<p>El modelo <strong>Yang Params</strong> simula la dinámica poblacional anual de dos especies de mosquitos vectores del dengue (<em>A. aegypti</em> y <em>A. albopictus</em>) mediante un sistema de 6 ecuaciones diferenciales ordinarias (ODE) con tasas biológicas dependientes de la temperatura. El objetivo último es calibrar los coeficientes de competencia interespecífica (<code>beta_ba</code>, <code>beta_ab</code>) contra datos de campo del INSPI tomados en la localidad LITA (2018–2021).</p>
+
+<p>El estado previo era:</p>
+<ul>
+  <li>El código MATLAB original <strong>contenía bugs documentados</strong> (variable <code>tspan</code> indefinida, parámetro <code>p</code> no propagado al ODE, equilibrio sin validación).</li>
+  <li>La migración a Python replicó esos bugs línea a línea.</li>
+  <li>El código Python <strong>corría</strong> pero <strong>sin validación</strong> de que los números producidos fueran correctos — sólo "no-NaN".</li>
+  <li><strong>Parámetros hardcodeados</strong> dispersos en 4+ archivos. Cambiar cualquiera requería buscar dónde estaba escondido.</li>
+  <li>La estructura modular existía pero <strong>sin docstrings</strong>: 25 archivos sin explicación del rol biológico, unidades o rango válido.</li>
+</ul>
+
+<!-- ===== 4. OBJETIVOS ===== -->
+<h2 id="objetivos">4. Objetivos del trabajo</h2>
+
+<ol>
+  <li><strong>Depurar:</strong> que el código corra sin fallos silenciosos y con mensajes de error útiles.</li>
+  <li><strong>Desacoplar:</strong> que todos los parámetros tunables vivan en un único punto editable.</li>
+  <li><strong>Documentar:</strong> que cualquier persona pueda abrir un módulo y entender qué hace.</li>
+  <li><strong>Validar:</strong> que los outputs sean verificables y las regresiones detectables automáticamente.</li>
+  <li><strong>Ordenar:</strong> que cualquiera entienda qué es cada carpeta y qué presentar.</li>
+</ol>
+
+<!-- ===== 5. FASES ===== -->
+<h2 id="fases">5. Fases ejecutadas</h2>
+
+<h3>5.1 Depuración de bugs heredados</h3>
+<table>
+  <thead>
+  <tr><th style="width:4%">#</th><th style="width:26%">Archivo</th><th style="width:34%">Bug</th><th>Corrección</th></tr>
+  </thead>
+  <tbody>
+  <tr><td>1</td><td><code>psi1_a.py</code></td><td>División <code>(mu_E · EP) / (1 − EP)</code> explota si <code>EP ≥ 1</code></td><td>Clipping de EP a <code>[0, 0.999]</code></td></tr>
+  <tr><td>2</td><td><code>muE_b.py</code></td><td>División por <code>egg_L1</code> cuando polinomio extrapola a 0</td><td>Piso <code>1e-3</code></td></tr>
+  <tr><td>3</td><td><code>muL_b.py</code></td><td>División por <code>EAS</code> cuando extrapola</td><td>Piso <code>1e-3</code></td></tr>
+  <tr><td>4</td><td><code>muE_a.py</code>, <code>muF_b.py</code></td><td>División por lifetime cuando cruza cero</td><td>Piso de lifetime</td></tr>
+  <tr><td>5</td><td><code>my_parameters.py</code></td><td><code>equilibrium_a</code> producía valores negativos si <code>ga0 &lt; 1</code></td><td>Validación <code>ga0 &gt; 1</code></td></tr>
+  <tr><td>6</td><td><code>myODE_ELF.py</code></td><td><code>solve_ivp</code> fallaba con mensaje opaco</td><td>Status, día, compartimento; chequeo previo de <code>isfinite(y0)</code></td></tr>
+  <tr><td>7</td><td>14 módulos</td><td>Extrapolación silenciosa fuera del rango de ajuste</td><td>Clipping al dominio <code>[poly_temp_min, poly_temp_max]</code> + warning</td></tr>
+  </tbody>
+</table>
+
+<h3>5.2 Centralización de parámetros</h3>
+<p>Se creó <code>dengue_model/config.py</code> con <code>ModelConfig</code> por bloques:</p>
+<table>
+  <thead><tr><th>Bloque</th><th>Campos</th></tr></thead>
+  <tbody>
+  <tr><td>Ecosistema</td><td><code>carrying_capacity</code> (K)</td></tr>
+  <tr><td>Simulación</td><td><code>simulation_days</code>, <code>num_points</code>, <code>albopictus_introduction_day</code>, <code>albopictus_intro_eggs</code></td></tr>
+  <tr><td>Tasas base</td><td><code>bF_aegypti</code>, <code>bF_albopictus</code>, <code>sigma_aegypti</code>, <code>sigma_albopictus</code></td></tr>
+  <tr><td>Ajustes empíricos</td><td><code>mortality_adjustment_aegypti</code> (×3), <code>mortality_adjustment_albopictus</code> (×10)</td></tr>
+  <tr><td>Competencia</td><td><code>beta_ba</code>, <code>beta_ab</code></td></tr>
+  <tr><td>Temperatura</td><td><code>temp_baseline_c</code>, <code>temp_amplitude</code>, <code>temp_shape_k1</code>, <code>temp_phase_days</code></td></tr>
+  <tr><td>Dominio polinomios</td><td><code>poly_temp_min</code>, <code>poly_temp_max</code></td></tr>
+  <tr><td>Numérica</td><td><code>ode_method</code>, <code>ode_rtol</code>, <code>ode_atol</code></td></tr>
+  </tbody>
+</table>
+
+<h3>5.3 Documentación biológica por módulo</h3>
+<p>Los 14 módulos de tasas biológicas ahora tienen un docstring estandarizado con especie, etapa, unidad, rango T válido y fuente bibliográfica.</p>
+
+<h3>5.4 Suite de validación</h3>
+<div class="grid-cards">
+  <div class="card">
+    <div class="num">13</div>
+    <h4>Tests estructurales</h4>
+    <p>No-NaN, no-negativos, fracciones suman 1, albopictus latente pre-introducción, equilibrio estable.</p>
+    <p style="color:var(--azul-claro)"><code>test_baseline.py</code></p>
+  </div>
+  <div class="card">
+    <div class="num">11</div>
+    <h4>Tests de literatura</h4>
+    <p>Cada tasa contrastada con Yang 2011, Farnesi 2009, Mordecai 2019.</p>
+    <p style="color:var(--azul-claro)"><code>test_literature_ranges.py</code></p>
+  </div>
+  <div class="card">
+    <div class="num">1</div>
+    <h4>Test de regresión</h4>
+    <p>Compara punto-a-punto contra snapshot; detecta regresiones futuras.</p>
+    <p style="color:var(--azul-claro)"><code>test_regression.py</code></p>
+  </div>
+</div>
+
+<h3>5.5 Ordenamiento de carpetas</h3>
+<ul>
+  <li>Aplanado: <code>Data Mosquitoes/Data Mosquitoes/</code> → <code>Data Mosquitoes/</code>, <code>Literature/Literature/</code> → <code>Literature/</code>.</li>
+  <li>Renombrado <code>Yang params model/Yang params model/</code> → <code>matlab_original/</code>.</li>
+  <li>Creación de <code>Yang params model/docs/</code> con todos los HTMLs e informes.</li>
+  <li>PDF suelto consolidado en <code>Literature/</code>.</li>
+  <li><code>.gitignore</code> con reglas estándar.</li>
+  <li>Dos README complementarios: uno raíz (visión global) y uno interno (técnico).</li>
+</ul>
+
+<!-- ===== 6. PRODUCTOS ===== -->
+<h2 id="productos">6. Productos (archivo por archivo)</h2>
+
+<h3>Código Python — <code>dengue_model/</code></h3>
+<table>
+  <thead><tr><th style="width:32%">Archivo</th><th>Para qué sirve</th></tr></thead>
+  <tbody>
+  <tr><td><strong><code>config.py</code></strong> <span class="badge ok">NUEVO</span></td><td>Dataclass <code>ModelConfig</code> con todos los parámetros tunables + singleton <code>CONFIG</code> + I/O JSON (<code>from_json</code>, <code>save_json</code>).</td></tr>
+  <tr><td><strong><code>diagnostics.py</code></strong> <span class="badge ok">NUEVO</span></td><td>CLI con 4 herramientas: <code>--plot-rates</code>, <code>--snapshot</code>, <code>--compare-snapshot</code>, <code>--save-figure</code>.</td></tr>
+  <tr><td><code>my_parameters.py</code> <span class="badge info">MOD</span></td><td>Objeto <code>P</code> (fachada). Lee de <code>CONFIG</code>, valida <code>ga0 &gt; 1</code>, usa <code>albopictus_intro_eggs</code> configurable.</td></tr>
+  <tr><td><code>myODE_ELF.py</code> <span class="badge info">MOD</span></td><td>Sistema ODE. Día de intro parametrizado, tolerancias desde config, diagnósticos de <code>solve_ivp</code>.</td></tr>
+  <tr><td><code>ELF.py</code> <span class="badge info">MOD</span></td><td>Punto de entrada. CLI con <code>--config</code>, <code>--compare-baseline</code>.</td></tr>
+  <tr><td><code>error_fun_betas.py</code> <span class="badge info">MOD</span></td><td>Función SSE. Día de intro parametrizado.</td></tr>
+  <tr><td><code>temp.py</code> <span class="badge info">MOD</span></td><td>6 constantes de temperatura ahora salen a <code>CONFIG.temp_*</code>.</td></tr>
+  <tr><td>5 módulos con fixes <span class="badge info">MOD</span></td><td><code>psi1_a</code>, <code>muE_b</code>, <code>muL_b</code>, <code>muE_a</code>, <code>muF_b</code>: división por cero controlada.</td></tr>
+  <tr><td>14 módulos <code>phi_*, psi*, mu*</code> <span class="badge info">MOD</span></td><td>Docstrings biológicos estandarizados.</td></tr>
+  <tr><td><code>_utils.py</code> <span class="badge info">MOD</span></td><td>Nueva función <code>clip_temp_for_poly()</code>.</td></tr>
+  <tr><td><code>paths.py</code> <span class="badge info">MOD</span></td><td>Actualizado a la estructura aplanada de <code>Data Mosquitoes/</code>.</td></tr>
+  </tbody>
+</table>
+
+<h3>Suite de tests — <code>tests/</code></h3>
+<table>
+  <thead><tr><th style="width:32%">Archivo</th><th>Para qué sirve</th></tr></thead>
+  <tbody>
+  <tr><td><code>test_baseline.py</code> <span class="badge ok">NUEVO</span></td><td>13 tests estructurales del modelo.</td></tr>
+  <tr><td><code>test_literature_ranges.py</code> <span class="badge ok">NUEVO</span></td><td>11 tests contra rangos de literatura.</td></tr>
+  <tr><td><code>test_regression.py</code> <span class="badge ok">NUEVO</span></td><td>1 test de regresión contra snapshot.</td></tr>
+  </tbody>
+</table>
+
+<h3>Datos y outputs — <code>data/</code></h3>
+<table>
+  <thead><tr><th style="width:36%">Archivo</th><th>Qué contiene y para qué sirve</th></tr></thead>
+  <tbody>
+  <tr><td><code>full_table_Lita.mat</code></td><td>Datos de ovitrampas de LITA (INSPI, 2018–2021) procesados. Input para <code>error_fun_betas</code>.</td></tr>
+  <tr><td><code>params_literature/*.csv</code></td><td>Valores térmicos de albopictus de literatura (Adult_Lifespan, Biting_rate, EAS, Fecundity, MDR).</td></tr>
+  <tr><td><code>python_snapshot.json</code> <span class="badge ok">NUEVO</span></td><td><strong>Baseline de regresión</strong>. Captura <code>t</code>, <code>y</code> y fracciones con config por defecto. El test de regresión compara contra este archivo (<code>rtol=1e-8</code>).</td></tr>
+  <tr><td><code>diagnostics/rates_vs_temperature.png</code> <span class="badge ok">NUEVO</span></td><td><strong>Gráfica 1</strong>. Las 14 tasas biológicas sobre T ∈ [15, 35] °C. Ver §7.</td></tr>
+  <tr><td><code>diagnostics/rates_vs_temperature.csv</code> <span class="badge ok">NUEVO</span></td><td>Datos tabulados de la gráfica anterior.</td></tr>
+  <tr><td><code>diagnostics/model_fractions.png</code> <span class="badge ok">NUEVO</span></td><td><strong>Gráfica 2</strong>. Dinámica anual del modelo completo. Ver §7.</td></tr>
+  </tbody>
+</table>
+
+<h3>Documentación — <code>docs/</code></h3>
+<table>
+  <thead><tr><th style="width:36%">Archivo</th><th>Qué es</th></tr></thead>
+  <tbody>
+  <tr><td><code>Informe_Depuracion_y_Validacion.html</code> <span class="badge ok">NUEVO</span></td><td><strong>Este documento</strong>. Informe narrativo del trabajo — entregable principal para presentar.</td></tr>
+  <tr><td><code>Auditoria_Migracion.html</code></td><td>Diff archivo-por-archivo MATLAB ↔ Python. Generado por <code>generate_migration_audit.py</code>.</td></tr>
+  <tr><td><code>MATLAB_VS_PYTHON_ANALYSIS.md</code></td><td>Notas técnicas de diferencias entre lenguajes.</td></tr>
+  <tr><td><code>inline_audit_check.js</code></td><td>Script auxiliar embebido en el HTML de auditoría.</td></tr>
+  </tbody>
+</table>
+
+<h3>READMEs</h3>
+<table>
+  <tbody>
+  <tr><td><code>14. Modelado Dengue/README.md</code> <span class="badge ok">NUEVO</span></td><td>Orientación global del repo: qué presentar, mapa de carpetas, cómo empezar.</td></tr>
+  <tr><td><code>Yang params model/README.md</code> <span class="badge info">MOD</span></td><td>Doc técnica del modelo con mapa de archivos, cómo correr e interpretar cada gráfica.</td></tr>
+  </tbody>
+</table>
+
+<!-- ===== 7. GRAFICAS ===== -->
+<h2 id="graficas">7. Interpretación de las gráficas</h2>
+
+<h3 id="grafica-1">7.1 <code>rates_vs_temperature.png</code> — tasas biológicas</h3>
+
+<figure>
+  <img src="../data/diagnostics/rates_vs_temperature.png" alt="Tasas biológicas vs temperatura">
+  <figcaption>Figura 1. Las 14 tasas biológicas del modelo sobre T ∈ [15, 35] °C. Azul sólido = <em>A. aegypti</em>. Rojo punteado = <em>A. albopictus</em>.</figcaption>
+</figure>
+
+<p><strong>Qué representa:</strong> cada uno de los 14 polinomios biológicos del modelo evaluado directamente en temperatura. Permite validar visualmente que cada tasa tiene la forma cualitativa reportada en la literatura.</p>
+
+<p><strong>Cómo leerla (panel por panel):</strong></p>
+
+<table>
+  <thead><tr><th>Panel</th><th>Muestra</th><th>Forma esperada</th></tr></thead>
+  <tbody>
+  <tr><td>Fecundidad base</td><td><code>phi_A</code>, <code>phi_B</code></td><td>Unimodal con pico en zona tropical (25–30 °C); cae en los extremos.</td></tr>
+  <tr><td>Oviposición efectiva</td><td><code>phi_p_a</code>, <code>phi_p_b</code></td><td>Muy similar a fecundidad base (sigma &gt; mu_F en rango operacional).</td></tr>
+  <tr><td>Desarrollo huevo→larva</td><td><code>psi1_a</code>, <code>psi1_b</code></td><td>Creciente con T; aegypti con valores más bajos.</td></tr>
+  <tr><td>Desarrollo larva→adulto</td><td><code>psi2_a</code>, <code>psi2_b</code></td><td>Alrededor de 0.1–0.15/día; saturación.</td></tr>
+  <tr><td>Mortalidad huevo</td><td><code>muE_a</code>, <code>muE_b</code></td><td>Aegypti baja y estable; albopictus alta en T&lt;25 (artefacto del clipping).</td></tr>
+  <tr><td>Mortalidad larva</td><td><code>muL_a</code>, <code>muL_b</code></td><td>Tasas bajas, 0.02–0.1/día.</td></tr>
+  <tr><td>Mortalidad adulto</td><td><code>muF_a</code>, <code>muF_b</code></td><td>Aegypti ~0.03/día. Picos en extremos = artefacto.</td></tr>
+  </tbody>
+</table>
+
+<div class="alert warn">
+  <strong>Sobre los extremos aparentemente anómalos.</strong> En T=15 o T=35 algunos polinomios cruzan cero y, tras el clipping de seguridad, se estabilizan en valores extremos. <strong>Esto no afecta al modelo</strong> porque el modelo de temperatura solo genera valores en ~24–27 °C. Los extremos aparecen aquí sólo porque evaluamos los polinomios fuera del rango de operación real, para testear su comportamiento.
+</div>
+
+<h3 id="grafica-2">7.2 <code>model_fractions.png</code> — dinámica del modelo</h3>
+
+<figure>
+  <img src="../data/diagnostics/model_fractions.png" alt="Fracciones por compartimento">
+  <figcaption>Figura 2. Output del modelo con configuración por defecto. Simulación de 365 días. Ejes: días vs fracción del compartimento.</figcaption>
+</figure>
+
+<p><strong>Qué representa:</strong> cómo se distribuye la población de cada especie entre sus tres etapas (huevo, larva, adulto) a lo largo del año. La fracción en cada instante normaliza por el total de la especie: Ea / (Ea + La + Fa).</p>
+
+<p><strong>Leyenda:</strong></p>
+<ul style="list-style:none;padding-left:0;">
+  <li><span class="legend" style="background:#e74c3c;"></span><strong>Rojo sólido</strong> — Fracción de huevos aegypti (Ea)</li>
+  <li><span class="legend" style="background:#27ae60;"></span><strong>Verde punteado</strong> — Fracción de larvas aegypti (La)</li>
+  <li><span class="legend" style="background:#2980b9;"></span><strong>Azul punto-raya</strong> — Fracción de adultos aegypti (Fa)</li>
+  <li><span class="legend" style="background:#17a2b8;"></span><strong>Cian sólido</strong> — Fracción de huevos albopictus (Eb)</li>
+  <li><span class="legend" style="background:#c2185b;"></span><strong>Magenta punteado</strong> — Fracción de larvas albopictus (Lb)</li>
+  <li><span class="legend" style="background:#f1c40f;"></span><strong>Amarillo punto-raya</strong> — Fracción de adultos albopictus (Fb)</li>
+</ul>
+
+<p><strong>Lectura del resultado obtenido:</strong></p>
+<ul>
+  <li><strong>Aegypti:</strong> las tres fracciones se mantienen estables todo el año — el modelo está en equilibrio. Huevos ~79%, larvas ~13%, adultos ~8%, con pequeñas oscilaciones estacionales.</li>
+  <li><strong>Albopictus:</strong> fracciones constantes (con <code>E_b</code> dominando porque arranca con 10 huevos y cero larvas/adultos) hasta el <strong>día 355</strong>, donde la especie se "introduce" y empieza a reproducirse. A partir de allí las fracciones se acomodan rápidamente a una nueva distribución.</li>
+  <li><strong>La discontinuidad en día 355</strong> es deliberada: modela la introducción de una especie invasora en un ecosistema con aegypti ya establecido.</li>
+</ul>
+
+<div class="alert ok">
+  <strong>Validación visual:</strong> ambas gráficas son consistentes con la dinámica documentada en el paper fuente y con los rangos esperados de Yang 2011 / Mordecai 2019. El test de regresión garantiza que estas formas no cambiarán sin intención en el futuro.
+</div>
+
+<!-- ===== 8. VALIDACION ===== -->
+<h2 id="validacion">8. Protocolo de validación sin MATLAB</h2>
+
+<p>Como no disponemos de MATLAB para generar ground truth, la validación se sostiene en tres pilares complementarios:</p>
+
+<h3>8.1 Tests estructurales (13 tests)</h3>
+<pre><code>python -m pytest tests/test_baseline.py -v</code></pre>
+
+<h3>8.2 Tests contra rangos de literatura (11 tests)</h3>
+<pre><code>python -m pytest tests/test_literature_ranges.py -v</code></pre>
+<ul>
+  <li><code>phi_A</code> pico en rango tropical (24–32 °C), valor 2–20 huevos/ciclo</li>
+  <li><code>muF_a</code> en T óptimo: 0.01–0.1 /día (vida 10–60 días)</li>
+  <li><code>psi2_a/psi2_b</code>: 0.05–0.25 /día</li>
+  <li><code>phi_A</code> unimodal</li>
+  <li><code>psi1_a</code> finito en todo el dominio — verifica el fix del bug</li>
+</ul>
+
+<h3>8.3 Test de regresión contra snapshot (1 test)</h3>
+<pre><code>python -m pytest tests/test_regression.py -v
+# o
+python -m dengue_model.diagnostics --compare-snapshot</code></pre>
+<p>Cualquier cambio numérico por encima de <code>rtol=1e-8</code> falla el test.</p>
+
+<div class="alert info">
+  <strong>Puente a MATLAB.</strong> El CLI <code>--compare-baseline</code> ya está listo; sólo falta correr <code>ELF.m</code> con <code>save('baseline_matlab.mat', 't', 'y')</code> y convertir a JSON.
+</div>
+
+<!-- ===== 9. USO ===== -->
+<h2 id="uso">9. Cómo usarlo y editar parámetros</h2>
+
+<h3>9.1 Correr la simulación</h3>
+<pre><code># Configuración por defecto
+python -m dengue_model.ELF
+
+# Sin gráficas
+python -m dengue_model.ELF --no-plot
+
+# Override de betas
+python -m dengue_model.ELF --beta-ba 0.3 --beta-ab 0.7
+
+# Con config externa
+python -m dengue_model.ELF --config mi_experimento.json</code></pre>
+
+<h3>9.2 Generar plantilla de configuración</h3>
+<pre><code>python -c "from dengue_model.config import ModelConfig; ModelConfig().save_json('template.json')"</code></pre>
+
+<h3>9.3 Uso programático</h3>
+<pre><code>from dengue_model import CONFIG, ModelConfig, run_elf, set_config
+
+CONFIG.beta_ba = 0.3
+CONFIG.carrying_capacity = 2e5
+from dengue_model.my_parameters import rebuild_P; rebuild_P()
+result = run_elf(plot=False)
+
+# O cargar desde archivo
+set_config(ModelConfig.from_json("mi_experimento.json"))</code></pre>
+
+<h3>9.4 Herramientas de diagnóstico</h3>
+<pre><code>python -m dengue_model.diagnostics --plot-rates
+python -m dengue_model.diagnostics --snapshot
+python -m dengue_model.diagnostics --save-figure salida.png</code></pre>
+
+<!-- ===== 10. RESULTADOS ===== -->
+<h2 id="resultados">10. Resultados numéricos</h2>
+
+<h3>10.1 Condiciones iniciales (equilibrio aegypti, día 1)</h3>
+<table>
+  <thead><tr><th>Compartimento</th><th>Valor</th><th>Interpretación</th></tr></thead>
+  <tbody>
+  <tr><td>E_a (huevos aegypti)</td><td>575 984.76</td><td>Stock de huevos en equilibrio estacional</td></tr>
+  <tr><td>L_a (larvas aegypti)</td><td>94 704.22</td><td>Cerca del 95% de la capacidad de carga</td></tr>
+  <tr><td>F_a (hembras aegypti)</td><td>58 958.57</td><td>Adultas activas, tamaño de equilibrio</td></tr>
+  <tr><td>E_b / L_b / F_b (albopictus)</td><td>10 / 0 / 0</td><td>Inyección inicial; dormida hasta día 355</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Continuidad con Fase 1:</strong> valores idénticos al log <code>debug-b70f95.log</code> previo — los fixes no alteraron la semántica del modelo, sólo lo hicieron robusto y configurable.</p>
+
+<h3>10.2 Suite de tests</h3>
+<pre><code>$ python -m pytest tests/ -v
+...
+============================= 25 passed in 28.58s =============================</code></pre>
+
+<table>
+  <thead><tr><th>Suite</th><th>Tests</th><th>Estado</th></tr></thead>
+  <tbody>
+  <tr><td><code>test_baseline.py</code></td><td>13</td><td><span class="badge ok">Pasa</span></td></tr>
+  <tr><td><code>test_literature_ranges.py</code></td><td>11</td><td><span class="badge ok">Pasa</span></td></tr>
+  <tr><td><code>test_regression.py</code></td><td>1</td><td><span class="badge ok">Pasa</span></td></tr>
+  <tr><td><strong>Total</strong></td><td><strong>25</strong></td><td><span class="badge ok">25/25</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ===== 11. PENDIENTE ===== -->
+<h2 id="pendiente">11. Estado actual y pendientes</h2>
+
+<h3>11.1 Completado</h3>
+<ul>
+  <li><span class="badge ok">Hecho</span> Depuración de 7 bugs heredados.</li>
+  <li><span class="badge ok">Hecho</span> Centralización de parámetros en <code>config.py</code>.</li>
+  <li><span class="badge ok">Hecho</span> Docstrings biológicos en los 14 módulos.</li>
+  <li><span class="badge ok">Hecho</span> Suite de 25 tests.</li>
+  <li><span class="badge ok">Hecho</span> Diagnósticos con exportación de figuras.</li>
+  <li><span class="badge ok">Hecho</span> Reorganización de carpetas y consolidación en <code>docs/</code>.</li>
+  <li><span class="badge ok">Hecho</span> READMEs (raíz + interno) y este informe HTML.</li>
+</ul>
+
+<h3>11.2 Diferido</h3>
+<ul>
+  <li><span class="badge warn">Pendiente</span> <strong>Ground-truth MATLAB.</strong> CLI ya listo; falta instalar MATLAB.</li>
+  <li><span class="badge pend">Diferido</span> <strong>Calibración de betas.</strong> Envolver <code>error_fun_betas</code> con <code>scipy.optimize</code>.</li>
+  <li><span class="badge pend">Diferido</span> <strong>Revisar multiplicadores ×3 y ×10</strong> de mortalidad adulta con autores del modelo.</li>
+</ul>
+
+<!-- ===== 12. REFERENCIAS ===== -->
+<h2 id="referencias">12. Referencias</h2>
+<ul>
+  <li><strong>Yang, H. M. et al.</strong> (2011). Tasas térmicas de <em>A. aegypti</em>. <em>Epidemiology and Infection</em>.</li>
+  <li><strong>Farnesi, L. C. et al.</strong> (2009). Eclosión y mortalidad de huevos de <em>A. aegypti</em>.</li>
+  <li><strong>Mordecai, E. A. et al.</strong> (2019). <em>Thermal biology of mosquito-borne disease</em>.</li>
+  <li><strong>Marini et al.</strong> Desarrollo larval de <em>A. albopictus</em>.</li>
+</ul>
+
+<footer>
+  Generado el 20 de abril de 2026 &middot; INSPI · EpiSIG · Modelado Dengue · Alexis Núñez López
+</footer>
+
+</div>
+</body>
+</html>

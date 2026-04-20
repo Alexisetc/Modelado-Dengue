@@ -13,9 +13,8 @@ FULL_TABLE_MAT = DATA_DIR / "full_table_Lita.mat"
 _RAW_FIELD_CSV_CANDIDATES = [
     REPO_ROOT
     / "Data Mosquitoes"
-    / "Data Mosquitoes"
     / "Scripts"
-    / "INSPI_CZ9_GIDi_SIT_RLA5074_Field_2018-2019-2020-2021_20230503_DC_CM_FM_XAG.csv"
+    / "INSPI_CZ9_GIDi_SIT_RLA5074_Field_2018-2019-2020-2021_20230503_DC_CM_FM_XAG.csv",
 ]
 
 
