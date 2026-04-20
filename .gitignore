@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.Python
+build/
+dist/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Editores / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cursor
+.cursor/debug-*.log
+
+# Logs y archivos temporales del harness
+debug-*.log
+*.tmp
+*.bak
+
+# MATLAB temporales
+*.asv
+
+# OS
+.DS_Store
+Thumbs.db

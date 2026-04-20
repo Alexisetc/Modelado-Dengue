@@ -1,3 +1,10 @@
+"""Tasa de oviposición efectiva per cápita de *A. albopictus* (phi_p_b).
+
+Análogo a phi_p_a pero para A. albopictus:
+    phi_p = (phi_B · sigma_b) / (mu_F_b + sigma_b)
+
+Unidad: día⁻¹.
+"""
 from __future__ import annotations
 
 from .muF_b import muF_b

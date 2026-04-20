@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io import loadmat
 
+from . import config
 from ._utils import safe_fraction
 from .figure_setups import setup
 from .myODE_ELF import solve_model
@@ -43,18 +44,23 @@ def load_field_data(mat_path=None, rebuild_if_missing=True):
 
 
 def simulate_segments(p, data):
+    intro_day = config.CONFIG.albopictus_introduction_day
     ea0, la0, fa0 = equilibrium_a()
     y01 = np.array([ea0, la0, fa0, 0.0, 0.0, 0.0], dtype=float)
 
-    tspan1 = np.arange(0.0, 356.0, 1.0)
+    tspan1 = np.arange(0.0, intro_day + 1.0, 1.0)
     t1, y1 = solve_model(t_eval=tspan1, y0=y01, p=p)
 
-    final_day = max(float(np.ceil(data.days_passed[-1])), 355.0)
-    if final_day <= 355.0:
+    final_day = max(float(np.ceil(data.days_passed[-1])), intro_day)
+    if final_day <= intro_day:
         return t1, y1
 
-    tspan2 = np.arange(355.0, final_day + 1.0, 1.0)
-    y02 = np.array([y1[-1, 0], y1[-1, 1], y1[-1, 2], 0.0, 0.0, 1.0], dtype=float)
+    tspan2 = np.arange(intro_day, final_day + 1.0, 1.0)
+    # Inyección inicial de albopictus al segundo segmento
+    y02 = np.array(
+        [y1[-1, 0], y1[-1, 1], y1[-1, 2], 0.0, 0.0, 1.0],
+        dtype=float,
+    )
     t2, y2 = solve_model(t_eval=tspan2, y0=y02, p=p)
 
     t = np.concatenate([t1, t2[1:]])
@@ -86,11 +92,13 @@ def _plot_fractions(t, y):
     ax.legend()
     fig.tight_layout()
 
+    intro_day = config.CONFIG.albopictus_introduction_day
     fig_zoom, ax_zoom = setup()
-    mask = (t >= 338) & (t <= 400)
+    mask = (t >= intro_day - 17) & (t <= intro_day + 45)
     for idx, (label, style) in enumerate(zip(labels, styles)):
         ax_zoom.plot(t[mask], fractions[mask, idx], style, label=label)
     ax_zoom.set_xlabel("t")
+    ax_zoom.set_title(f"Zoom alrededor de introducción albopictus (t={intro_day})")
     ax_zoom.legend()
     fig_zoom.tight_layout()
 

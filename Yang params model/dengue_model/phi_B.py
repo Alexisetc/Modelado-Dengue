@@ -1,8 +1,18 @@
+"""Fecundidad de *Aedes albopictus* (phi_B).
+
+Especie: A. albopictus.
+Etapa: hembra adulta.
+Unidad: huevos·hembra⁻¹·ciclo⁻¹.
+Ajuste: producto de dos polinomios grado 6 en T (°C):
+    phi_B(T) = biting_rate(T) · fecundidad_por_mordedura(T)
+Fuente: Mordecai et al. (2019) + Marini et al. — ajustes combinados.
+Rango de ajuste: T ∈ [15, 35] °C.
+"""
 from __future__ import annotations
 
 import numpy as np
 
-from ._utils import return_like_input
+from ._utils import clip_temp_for_poly, return_like_input
 from .temp import temp
 
 
@@ -34,5 +44,6 @@ COEFF_BR = np.array(
 
 def phi_B(day):
     x_values = temp(day, 0)
-    result = np.polyval(COEFF_BR, x_values) * np.polyval(COEFF_FECUND, x_values)
+    x_clipped = clip_temp_for_poly(x_values, source="phi_B")
+    result = np.polyval(COEFF_BR, x_clipped) * np.polyval(COEFF_FECUND, x_clipped)
     return return_like_input(day, result)
